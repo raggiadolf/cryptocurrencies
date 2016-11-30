@@ -1,6 +1,5 @@
 import socket
 import sys
-from base64 import b64decode
 import cPickle
 
 from Crypto.PublicKey import RSA
