@@ -5,14 +5,14 @@ import cPickle
 
 from Crypto.PublicKey import RSA
 from Crypto import Random
-from Crypto.Hash import MD5
+from Crypto.Hash import SHA256
 rng = Random.new().read
 
 cert_text = "This is a text to sign and verify"
 
 key = RSA.generate(2048, rng)
 public_key = key.publickey()
-signature = key.sign(MD5.new(cert_text).digest(), rng)
+signature = key.sign(SHA256.new(cert_text).digest(), rng)
 
 if len(sys.argv) is not 3:
 	print 'Missing argument, exiting...'

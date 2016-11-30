@@ -5,7 +5,7 @@ import cPickle
 
 from Crypto.PublicKey import RSA
 from Crypto import Random
-from Crypto.Hash import MD5
+from Crypto.Hash import SHA256
 rng = Random.new().read
 
 cert_text = "This is a text to sign and verify"
@@ -37,7 +37,7 @@ alice_key = RSA.importKey(alice_key_obj['key'])
 alice_signature = alice_key_obj['signature']
 addr = keymsg[1]
 
-if alice_key.verify(MD5.new(cert_text).digest(), alice_signature) is False:
+if alice_key.verify(SHA256.new(cert_text).digest(), alice_signature) is False:
 	print("Not verified")
 	s.sendto("Signature not verified.", addr)
 	# Loop here and request a new signature
