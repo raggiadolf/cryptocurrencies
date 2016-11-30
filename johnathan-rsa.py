@@ -1,29 +1,16 @@
-import socket
-import sys
+import gnupg
+from pprint import pprint
 
-from Crypto.PublicKey import RSA
+gpg = gnupg.GPG(gnupghome='/tmp/raggiadolf/gpghome')
+#key_data = open('RUkey.asc').read()
+#import_result = gpg.import_keys(key_data)
 
-f = open('key.pem', 'r')
-key = RSA.importKey(f.read())
+with open('sitelogo-2x.png', 'rb') as f:
+	status = gpg.encrypt_file(
+		f, recipients=['jonathan@poritz.net'],
+		output='supersecretpic.gpg',
+		always_trust=True)
 
-print(key.encrypt("This is hopefully a encrypted message", 32)[0])
-
-'''
-while(True):
-	msg = raw_input('>> ')
-
-	encoded_msg = bob_key.encrypt(msg, 32)
-
-	try:
-		s.sendto(encoded_msg[0], (host, port))
-
-		d = s.recvfrom(1024)
-		reply = d[0]
-		addr = d[1]
-
-		print 'Server reply : ' + key.decrypt(reply)
-
-	except socket.error as msg:
-		print('Error code: ' + str(msg[0]) + ' Message ' + msg[1])
-		sys.exit()
-'''
+print 'ok: ', status.ok
+print 'status: ', status.status
+print 'stderr: ', status.stderr
