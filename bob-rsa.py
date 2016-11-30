@@ -35,12 +35,12 @@ keymsg = s.recvfrom(2048)
 alice_key_obj = cPickle.loads(keymsg[0])
 alice_key = RSA.importKey(alice_key_obj['key'])
 alice_signature = alice_key_obj['signature']
-print(alice_signature)
 addr = keymsg[1]
 
 if alice_key.verify(MD5.new(cert_text).digest(), alice_signature) is False:
 	print("Not verified")
 	s.sendto("Signature not verified.", addr)
+	# Loop here and request a new signature
 
 s.sendto(public_key.exportKey(), addr)
 
