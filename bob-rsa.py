@@ -1,19 +1,17 @@
 import socket
 import sys
 from base64 import b64decode
+import cPickle
 
 from Crypto.PublicKey import RSA
 from Crypto import Random
+from Crypto.Hash import MD5
 rng = Random.new().read
+
+cert_text = "This is a text to sign and verify"
 
 host = ''
 port = 59191
-
-'''
-file_name = 'key.pem'
-f = open(file_name, 'r')
-key = RSA.importKey(f.read())
-'''
 
 key = RSA.generate(2048, rng)
 public_key = key.publickey()
@@ -33,14 +31,21 @@ except socket.error as msg:
 
 print('Socket bind complete')
 
-keymsg = s.recvfrom(1024)
-alice_key = RSA.importKey(keymsg[0])
+keymsg = s.recvfrom(2048)
+alice_key_obj = cPickle.loads(keymsg[0])
+alice_key = RSA.importKey(alice_key_obj['key'])
+alice_signature = alice_key_obj['signature']
+print(alice_signature)
 addr = keymsg[1]
+
+if alice_key.verify(MD5.new(cert_text).digest(), alice_signature) is False:
+	print("Not verified")
+	s.sendto("Signature not verified.", addr)
 
 s.sendto(public_key.exportKey(), addr)
 
 while(True):
-	d = s.recvfrom(1024)
+	d = s.recvfrom(2048)
 	data = d[0]
 	addr = d[1]
 

@@ -1,13 +1,18 @@
 import socket
 import sys
 from base64 import b64decode
+import cPickle
 
 from Crypto.PublicKey import RSA
 from Crypto import Random
+from Crypto.Hash import MD5
 rng = Random.new().read
+
+cert_text = "This is a text to sign and verify"
 
 key = RSA.generate(2048, rng)
 public_key = key.publickey()
+signature = key.sign(MD5.new(cert_text).digest(), rng)
 
 if len(sys.argv) is not 3:
 	print 'Missing argument, exiting...'
@@ -22,8 +27,13 @@ except socket.error:
 	print 'Failed to create socket'
 	sys.exit()
 
-s.sendto(public_key.exportKey(), (host, port))
-bob_key = RSA.importKey(s.recvfrom(1024)[0])
+keysig_object = {
+	'key': public_key.exportKey(),
+	'signature': signature
+}
+
+s.sendto(cPickle.dumps(keysig_object), (host, port))
+bob_key = RSA.importKey(s.recvfrom(2048)[0])
 
 while(True):
 	msg = raw_input('>> ')
@@ -33,7 +43,7 @@ while(True):
 	try:
 		s.sendto(encoded_msg[0], (host, port))
 
-		d = s.recvfrom(1024)
+		d = s.recvfrom(2048)
 		reply = d[0]
 		addr = d[1]
 
