@@ -13,12 +13,15 @@ key = RSA.generate(2048, rng)
 public_key = key.publickey()
 signature = key.sign(SHA256.new(cert_text).digest(), rng)
 
+'''
 if len(sys.argv) is not 3:
 	print 'Missing argument, exiting...'
 	sys.exit()
+'''
 
-host = sys.argv[1]
-port = int(sys.argv[2])
+#host = '127.0.0.1'
+host = '52.28.126.187'
+port = 59191
 
 try:
 	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -31,6 +34,7 @@ keysig_object = {
 	'signature': signature
 }
 
+s.sendto("init", (host, port))
 s.sendto(cPickle.dumps(keysig_object), (host, port))
 bob_key = RSA.importKey(s.recvfrom(2048)[0])
 

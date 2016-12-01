@@ -9,7 +9,8 @@ rng = Random.new().read
 
 cert_text = "This is a text to sign and verify"
 
-host = ''
+#host = '127.0.0.1'
+host = '52.28.126.187'
 port = 59191
 
 key = RSA.generate(2048, rng)
@@ -22,6 +23,7 @@ except socket.error as msg:
 	print('Failed to create socket. Error code: ' + str(msg[0]) + ' Message: ' + msg[1])
 	sys.exit()
 
+'''
 try:
 	s.bind((host, port))
 except socket.error as msg:
@@ -29,8 +31,12 @@ except socket.error as msg:
 	sys.exit()
 
 print('Socket bind complete')
+'''
+
+s.sendto("init", (host, port))
 
 keymsg = s.recvfrom(2048)
+print keymsg[0]
 alice_key_obj = cPickle.loads(keymsg[0])
 alice_key = RSA.importKey(alice_key_obj['key'])
 alice_signature = alice_key_obj['signature']

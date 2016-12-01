@@ -6,7 +6,7 @@ host = ''
 clients = []
 
 def reflect(conn, clients):
-	msg = conn.recvfrom(1024)
+	msg = conn.recvfrom(2048)
 	data = msg[0]
 	addr = msg[1]
 	print "Received: (" + msg[0] + ") from: [" + addr[0] + ":" + str(addr[1]) + "]"
@@ -17,7 +17,7 @@ def reflect(conn, clients):
 	conn.sendto(msg[0], (recipient[0]['host'], recipient[0]['port']))
 
 def get_init_msg(conn, clients):
-	msg = conn.recvfrom(1024)
+	msg = conn.recvfrom(2048)
 	data = msg[0]
 	addr = msg[1]
 	new_client = {
