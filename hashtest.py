@@ -38,8 +38,10 @@ sol = bitarray(s.recvfrom(2048)[0])
 
 t = SHA256.new(prefix + sol).hexdigest()
 
-if testbits(hashtobits(t), mask_str):
-	print "Got a solution back:"
-	print hashtobits(t).to01()
-else:
-	print "Wrong solution."
+print "Solution: " + sol.to01()
+
+#if testbits(hashtobits(t), mask_str):
+#	print "Got a solution back:"
+#	print hashtobits(t).to01()
+#else:
+#	print "Wrong solution."
