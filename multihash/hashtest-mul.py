@@ -1,17 +1,21 @@
 import socket
 import sys
+import time
 from bitarray import bitarray
 from Crypto.Hash import SHA256
+import binascii
 
-host = sys.argv[1]
+host = '127.0.0.1'
 #port = int(sys.argv[2])
 zero_mask_string = bitarray('0'*256)
 
-recv_host = '127.0.0.1'
-recv_port = 59191
+'''
+recv_host = '130.208.210.18'
+recv_port = 5000
 recv_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 recv_socket.connect((recv_host, recv_port))
 print 'Socket connected to ' + recv_host
+'''
 
 hostports = [
   59192,
@@ -49,13 +53,14 @@ except socket.error:
 #prefix = bitarray(128)
 #magic_len = 20
 
-reply = recv_socket.recv(4096)
-print reply
-prefix = bitarray(bin(int(reply[:-2], base=16))[2:])
-magic_len = int(reply[-2:])
+#prefix = bitarray(bin(int(binascii.b2a_hex(reply[:-1]), base=16))[2:])
+chall = 'to be or not to be '
+prefix = bitarray(''.join(format(ord(x), 'b') for x in chall))
+magic_len = 22
 
 mask_str = createmask(magic_len)
 
+start = time.time()
 for p in hostports:
   s.sendto(prefix.to01(), (host, p))
   s.sendto(str(magic_len), (host, p))
@@ -64,6 +69,8 @@ sol = bitarray(s.recvfrom(2048)[0])
 
 #t = SHA256.new(prefix + sol).hexdigest()
 
-recv_socket.sendall(sol.to01())
+#recv_socket.sendall(sol.to01())
 
+end = time.time()
+print(end - start)
 print "Solution: " + sol.to01()
