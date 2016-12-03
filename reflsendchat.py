@@ -20,10 +20,7 @@ def decrypt(message, key):
 	return key.decrypt(message)
 
 def verifyKey(rsakey, signature, key):
-	isVerified = False
-	if rsakey.verify(SHA256.new(cert_text).digest(), signature):
-		isVerified = True
-	return isVerified
+	return rsakey.verify(SHA256.new(cert_text).digest(), signature):
 
 def recv(s, key):
 	while True:
