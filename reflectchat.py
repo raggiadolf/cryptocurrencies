@@ -17,18 +17,7 @@ def reflect(conn, clients):
 	if not recipient:
 		print "Error, can't find recipient?"
 		return
-	msg_to_send = {
-		'msg': msg[0],
-		'client': getClientConnectionInformation(sender[0])
-	}
-	print "Sending: ", msg_to_send
-	conn.sendto(cPickle.dumps(msg_to_send), (recipient[0]['host'], recipient[0]['port']))
-
-def getClientConnectionInformation(client):
-	return {
-		'host': client['host'],
-		'port': client['port']
-	}
+	conn.sendto(cPickle.dumps(data), (recipient[0]['host'], recipient[0]['port']))
 
 def get_init_msg(conn, clients):
 	msg = conn.recvfrom(6144)
@@ -52,6 +41,10 @@ def get_init_msg(conn, clients):
 		return
 
 def sendInitMessage(conn, clients):
+	get_init_msg(conn, clients)
+
+	get_init_msg(conn, clients)
+
 	client1 = clients[0]
 	client2 = clients[1]
 	conn.sendto(cPickle.dumps(client2), (client1['host'], client1['port']))
@@ -60,14 +53,10 @@ def sendInitMessage(conn, clients):
 port = int(sys.argv[1])
 conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 conn.bind(('', port))
-initMessageSent = False
-while len(clients) < 2:
-	get_init_msg(conn, clients)
+
+sendInitMessage(conn, clients)
 
 while True:
-	if not initMessageSent:
-		sendInitMessage(conn, clients)
-		initMessageSent = True
 	reflect(conn, clients)
 
 print "Finished reflecting.. Exiting."

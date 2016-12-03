@@ -33,9 +33,7 @@ def recv(s, key):
 
 		if not data: sys.exit(0)
 
-		message = data['msg']
-
-		decryptedMessage = decrypt(message, key)
+		decryptedMessage = decrypt(data, key)
 		print 'Remote says: ', decryptedMessage
 
 def send(s, remotePubKey):
