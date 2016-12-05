@@ -16,6 +16,19 @@ def verify(verify_obj):
     'success': success
   }
 
+def generateTransactionId(transactions):
+  transaction_id = str(uuid.uuid4())
+  if validateTransactionId(transactions, transaction_id):
+    return transaction_id
+  else:
+    generateTransactionId(transactions)
+
+def validateTransactionId(transactions, transaction_id):
+  if transactions.get(transaction_id):
+    return False
+  else:
+    return True
+
 def authorize(auth_obj):
   with open('config.json') as data_file:
     config = json.load(data_file)
@@ -28,6 +41,7 @@ def authorize(auth_obj):
   if payer_balance >= auth_obj['amount']:
     success = True
     # TODO: check if this transaction number is already in the "table"
+    transaction_id = generateTransactionId(config['transactions'])
     transaction_id = str(uuid.uuid4())
     transferFunds(auth_obj, transaction_id)
     return {
