@@ -17,6 +17,7 @@ bank_port = 59190
 host = '127.0.0.1'
 port = 59191
 
+# Returns a json object including the information received from BBB
 def query_bank(s, data):
     s.sendto(json.dumps(data), (bank_host, bank_port))
     return json.loads(s.recv(4096))
@@ -27,12 +28,13 @@ def processAuthorize():
 	print "Input the recipients ID"
 	recip_id = raw_input('>> ')
 	auth_obj = {
+		'type': 'authorize',
 		'payer_id': my_id,
 		'receiver_id': recip_id,
 		'amount': amount
 	}
 
-	resp = query_bank(s, auth_obj) # The response from BBB
+	resp = query_bank(s, auth_obj)
 
 	if resp['success']:
 		print "Payment authorized"
@@ -48,13 +50,14 @@ def processVerify():
 	print "Input the transaction ID"
 	trans_id = raw_input('>> ')
 	verify_obj = {
+		'type': 'verify',
 		'payer_id': payer_id,
 		'receiver_id': my_id,
 		'amount': amount,
 		'transaction_id': trans_id
 	}
 
-	resp = query_bank(s, verify_obj) # The response from BBB
+	resp = query_bank(s, verify_obj)
 
 	if resp['success']:
 		print "Transaction successfully verified by BBB"
@@ -65,6 +68,24 @@ def processSendId(my_id, s, remotePubKey):
 	encryptedMessage = encrypt(str(my_id), remotePubKey)
 	s.sendto(encryptedMessage[0], (host, port))
 
+def printTransactions(transactions):
+	for k, v in transactions.iteritems():
+		print "Transaction id: " + k
+		for kk, vv in t['transactions'][k].iteritems():
+			print "\t" + kk + ": " + str(vv)
+
+def processGetTransactions(my_id):
+	trans_obj = {
+		'type': 'gettransactions',
+		'payer_id': my_id
+	}
+
+	resp = query_bank(s, trans_obj)
+	if not resp['success']:
+		print "No transactions found for this id."
+		return
+	printTransactions(resp['transactions'])
+
 def processCommands():
 	print "Available commands:"
 	print "\t/authorize"
@@ -73,7 +94,9 @@ def processCommands():
 	print "\t\tVerify a payment from Big Brother Bank"
 	print "\t/sendid"
 	print "\t\tSend your ID to your chat recipient"
-	print "\t/q (quit/exit)"
+	print "\t/gettransactions"
+	print "\t\tGet your transactions from Big Brother Bank"
+	print "\t/quit"
 	print "\t\tExit this program"
 
 def processCmd(cmd, my_id, s, remotePubKey):
@@ -85,6 +108,8 @@ def processCmd(cmd, my_id, s, remotePubKey):
 		processVerify()
 	elif cmd.lower() == 'sendid':
 		processSendId(my_id, s, remotePubKey)
+	elif cmd.lower() == 'gettransactions':
+		processGetTransactions(my_id)
 	elif cmd.lower() == 'exit' or cmd.lower() == 'quit' or cmd.lower() == 'q':
 		print "Exiting..."
 		sys.exit()
