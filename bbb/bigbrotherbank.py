@@ -86,7 +86,7 @@ def createTransactionObject(auth_obj):
 
 def main():
   host = ''
-  port = 59191
+  port = int(sys.argv[1])
 
   try:
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
