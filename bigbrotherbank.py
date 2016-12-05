@@ -4,6 +4,14 @@ import json
 import uuid
 
 def verify(verify_obj):
+  with open('config.json') as data_file:
+    config = json.load(data_file)
+  transactions = config['transactions']
+  success = False
+  if transactions.get(verify_obj['transaction_id']):
+    transaction_to_verify = transactions[verify_obj['transaction_id']]
+    if transaction_to_verify['payer_id'] == verify_obj['payer_id'] and transaction_to_verify['receiver_id'] == verify_obj['receiver_id'] and transaction_to_verify['amount'] == verify_obj['amount']:
+        success = True
   return {
     'success': success
   }
@@ -37,18 +45,11 @@ def verifyClients(data):
   clients = config['clients']
   payer_id = data['payer_id']
   receiver_id = data['receiver_id']
-  # if config[receiver_id] or config[payer_id] and receiver_id != payer_id:
-  # for client in cl:
-     # print r.get('key_name')
-  # isVerified = False
-  # for r in results:
-  #   if 'receiver_id' in r or 'payer_id' in r:
-  # if clients[receiver_id]:
-  #   print('receiver_id config', config['receiver_id'])
-  #   return True
-  # else:
-  #   print 'no match'
-  #   return False
+
+  isClientVerified = False
+  if clients.get(payer_id) and clients.get(receiver_id) and (payer_id != receiver_id):
+    isClientVerified = True
+  return isClientVerified
 
 def transferFunds(auth_obj, transaction_id):
   with open('config.json', 'r') as f:
@@ -98,15 +99,15 @@ def main():
     print('data..', data)
 
     response = ''
-    # if verifyClients(data):
-    if not data.get('transaction_id'):
-      response = authorize(data)
+    if verifyClients(data):
+      if data['type'] == 'authorize':
+        response = authorize(data)
+      else:
+        response = verify(data)
     else:
-      response = verify(data)
-    # else:
-    #   response = {
-    #     'success': False
-    #   }
+      response = {
+        'success': False
+      }
 
     s.sendto(json.dumps(response), addr)
 
