@@ -12,10 +12,10 @@ rng = Random.new().read
 
 cert_text = "This is a text to sign and verify"
 
-bank_host = ''
-bank_port = 59190
-host = '127.0.0.1'
-port = 59191
+host = sys.argv[1]
+port = int(sys.argv[2])
+bank_host = sys.argv[3]
+bank_port = int(sys.argv[4])
 
 # Returns a json object including the information received from BBB
 def query_bank(s, data):
