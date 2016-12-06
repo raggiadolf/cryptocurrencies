@@ -3,6 +3,9 @@ import sys
 import json
 import uuid
 
+from pprint import pprint
+from threading import Thread
+
 def verify(verify_obj):
   with open('config.json') as data_file:
     config = json.load(data_file)
@@ -16,6 +19,22 @@ def verify(verify_obj):
     'success': success
   }
 
+def generateId():
+  return str(uuid.uuid4())
+
+def generateTransactionId(transactions):
+  transaction_id = generateId()
+  if validateTransactionId(transactions, transaction_id):
+    return transaction_id
+  else:
+    generateTransactionId(transactions)
+
+def validateTransactionId(transactions, transaction_id):
+  if transactions.get(transaction_id):
+    return False
+  else:
+    return True
+
 def authorize(auth_obj):
   with open('config.json') as data_file:
     config = json.load(data_file)
@@ -27,8 +46,7 @@ def authorize(auth_obj):
   success = False
   if payer_balance >= auth_obj['amount']:
     success = True
-    # TODO: check if this transaction number is already in the "table"
-    transaction_id = str(uuid.uuid4())
+    transaction_id = generateTransactionId(config['transactions'])
     transferFunds(auth_obj, transaction_id)
     return {
       'success': True,
@@ -70,6 +88,80 @@ def createTransactionObject(auth_obj):
     "receiver_id": auth_obj['receiver_id']
   }
 
+def recv(s):
+  while True:
+    d = s.recvfrom(6144)
+    data = json.loads(d[0].decode('utf-8'))
+    addr = d[1]
+
+    if not data: break
+
+    response = ''
+    if verifyClients(data):
+      if data['type'] == 'authorize':
+        response = authorize(data)
+      elif data['type'] == 'verify':
+        response = verify(data)
+      else:
+        response = getAllTransactions()
+    else:
+      response = {
+        'success': False
+      }
+
+    s.sendto(json.dumps(response), addr)
+
+def openConfigFile():
+  with open('config.json') as data_file:
+    return json.load(data_file)
+
+def printClientTransactions(client, is_payer):
+  transactions = openConfigFile()['transactions']
+  client_id = 'receiver_id'
+  if is_payer:
+    client_id = 'payer_id'
+  has_transactions = False
+  for k, v in transactions.iteritems():
+    if v[client_id] == client:
+      has_transactions = True
+      print "Transaction id " + k
+      for kk, vv in transactions[k].iteritems():
+        print "\t" + kk + ": " + str(vv)
+  if not has_transactions:
+    print 'The ' + client_id + ' has no transactions'
+
+def printAllTransactions():
+  transactions = openConfigFile()['transactions']
+  for k, v in transactions.iteritems():
+    print "Transaction id: " + k
+    for kk, vv in transactions[k].iteritems():
+      print "\t" + kk + ": " + str(vv)
+
+def getClientTransactions(isPayer):
+  if isPayer:
+    print 'Input the payer ID'
+    payer_id = raw_input('>> ')
+    printClientTransactions(payer_id, True)
+  else:
+    print 'Input the receiver ID'
+    receiver_id = raw_input('>> ')
+    printClientTransactions(receiver_id, False)
+
+def commandLine():
+  while True:
+    cmd = raw_input('>> ')
+    if cmd.lower() == 'getalltransactions':
+      printAllTransactions()
+    elif cmd.lower() == 'payer':
+      getClientTransactions(True)
+    elif cmd.lower() == 'receiver':
+      getClientTransactions(False)
+    elif cmd.lower() == 'q' or cmd.lower() == 'quit' or cmd.lower() == 'exit': # Quit
+      print "Exiting..."
+      sys.exit()
+    else:
+      print "Command not recognized"
+
 def main():
   host = ''
   port = int(sys.argv[1])
@@ -88,27 +180,10 @@ def main():
 
   print 'Socket bind complete'
 
-  while(True):
-    d = s.recvfrom(4096)
-    data = json.loads(d[0].decode('utf-8'))
-    addr = d[1]
+  recv_thread = Thread(target=recv, args=(s,))
+  recv_thread.daemon = True
+  recv_thread.start()
 
-    if not data:
-      break
-
-    print('data..', data)
-
-    response = ''
-    if verifyClients(data):
-      if data['type'] == 'authorize':
-        response = authorize(data)
-      else:
-        response = verify(data)
-    else:
-      response = {
-        'success': False
-      }
-
-    s.sendto(json.dumps(response), addr)
+  commandLine()
 
 main()
