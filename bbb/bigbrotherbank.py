@@ -3,6 +3,8 @@ import sys
 import json
 import uuid
 
+from Crypto.Hash import SHA256
+
 from pprint import pprint
 from threading import Thread
 
@@ -88,6 +90,28 @@ def createTransactionObject(auth_obj):
     "receiver_id": auth_obj['receiver_id']
   }
 
+def createClient(data):
+  config = openConfigFile()
+  clients = config['clients']
+
+  success = False
+
+  if not clients.get(data['id']):
+    new_client = {
+      'amount': 0.0,
+      'key': data['key']
+    }
+    config[data['id']] = new_client
+    with open('config.json', 'w') as f:
+      f.write(json.dumps(config))
+
+    success = True
+
+  return response = {
+    'success': success
+  }
+
+
 def recv(s):
   while True:
     d = s.recvfrom(6144)
@@ -102,6 +126,8 @@ def recv(s):
         response = authorize(data)
       elif data['type'] == 'verify':
         response = verify(data)
+      elif data['type'] == 'create':
+        response = createClient(data)
       else:
         response = getAllTransactions()
     else:
