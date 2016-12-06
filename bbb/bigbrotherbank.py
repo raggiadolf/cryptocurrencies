@@ -4,9 +4,17 @@ import json
 import uuid
 
 from Crypto.Hash import SHA256
+from Crypto.PublicKey import RSA
+from Crypto import Random
+rng = Random.new().read
 
 from pprint import pprint
 from threading import Thread
+
+bank_public_key = None
+
+def generateKey():
+  return RSA.generate(2048, rng)
 
 def verify(verify_obj):
   with open('config.json') as data_file:
@@ -111,14 +119,43 @@ def createClient(data):
     'success': success
   }
 
+def init(data):
+  return response = {
+    'success': True,
+    'key': bank_public_key
+  }
+
+def getClientInfo(client_id):
+  clients = openConfigFile['clients']
+
+  client_info = clients[client_id]
+
+  if not client_info:
+    print "Could not find client info"
+    return
+
+  return client_info
+
+def decrypt(data):
+  return bank_key.decrypt(data)
+
+def encrypt(data, client_id):
+  client_info = getClientInfo(client_id)
+  client_key = RSA.importKey(client_info['key'])
+
+  return client_key.encrypt(data, 32)
 
 def recv(s):
   while True:
     d = s.recvfrom(6144)
-    data = json.loads(d[0].decode('utf-8'))
+    encrypted_data = json.loads(d[0].decode('utf-8'))
     addr = d[1]
 
-    if not data: break
+    if not encrypted_data: break
+
+    data_id = decrypted(encrypted_data)
+    client_id = data_id['id']
+    data = data_id['message']
 
     response = ''
     if verifyClients(data):
@@ -128,6 +165,8 @@ def recv(s):
         response = verify(data)
       elif data['type'] == 'create':
         response = createClient(data)
+      elif data['type'] == 'init':
+        response = init(data)
       else:
         response = getAllTransactions()
     else:
@@ -135,7 +174,8 @@ def recv(s):
         'success': False
       }
 
-    s.sendto(json.dumps(response), addr)
+    encrypted_response = encrypt(response, client_id)
+    s.sendto(json.dumps(encrypted_response), addr)
 
 def openConfigFile():
   with open('config.json') as data_file:
@@ -191,6 +231,9 @@ def commandLine():
 def main():
   host = ''
   port = int(sys.argv[1])
+
+  bank_key = generateKey()
+  bank_public_key = bank_key.publicKey()
 
   try:
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
