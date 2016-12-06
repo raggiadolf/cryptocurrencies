@@ -2,6 +2,7 @@ import socket
 from threading import Thread
 import sys
 import json
+import base64
 
 from Crypto.PublicKey import RSA
 from Crypto import Random
@@ -130,10 +131,13 @@ def processCmd(cmd, my_id, s, remotePubKey, my_pub_key):
 	else:
 		print "Command not recognized."
 
+def string_to_chunks(string, length):
+    return (string[0+i:length+i] for i in range(0, len(string), length))
+
 def encrypt(message, pub_key):
-	print "json", json.dumps(message)
-	print "Encrypted", pub_key.encrypt(json.dumps(message), 32)[0]
-	return pub_key.encrypt(json.dumps(message), 32)[0]
+	messages = list(string_to_chunks(json.dumps(message), 256))
+	messages_encrypted = [base64.b64encode(pub_key.encrypt(m, 32)[0]) for m in messages]
+	return json.dumps(messages_encrypted)
 
 def decrypt(message, key):
 	return key.decrypt(message)

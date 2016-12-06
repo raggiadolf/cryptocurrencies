@@ -2,6 +2,7 @@ import socket
 import sys
 import json
 import uuid
+import base64
 
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
@@ -138,9 +139,8 @@ def getClientInfo(client_id):
   return client_info
 
 def decrypt(bank_key, data):
-  print "Encrypted", data
-  print "Decrypted", bank_key.decrypt(data)
-  return bank_key.decrypt(data)
+  list_decrypted = [bank_key.decrypt(base64.b64decode(chunk)) for chunk in json.loads(data)]
+  return json.loads(''.join(list_decrypted))
 
 def encrypt(data, client_id):
   client_info = getClientInfo(client_id)
@@ -163,13 +163,13 @@ def recv(s, bank_key):
 
     if not encrypted_data: break
 
-    if is_json(encrypted_data):
+    if type(json.loads(encrypted_data)) is not list:
       # Shitty hack to intercept the first init msg
-      if json.loads(encrypted_data).get('type'):
-        response = init(bank_key)
-        s.sendto(json.dumps(response), addr)
-        continue
-    data_id = json.loads(decrypt(bank_key, encrypted_data))
+      response = init(bank_key)
+      s.sendto(json.dumps(response), addr)
+      continue
+
+    data_id = decrypt(bank_key, encrypted_data)
     client_id = data_id['id']
     data = data_id['message']
 
