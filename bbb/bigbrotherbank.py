@@ -123,7 +123,7 @@ def init(bank_key):
   return {
     'success': True,
     'key': bank_key.publickey().exportKey(),
-    'type': 'create'
+    'type': 'init'
   }
 
 def getClientInfo(client_id):
@@ -138,14 +138,15 @@ def getClientInfo(client_id):
   return client_info
 
 def decrypt(bank_key, data):
-  d = bank_key.decrypt(data)
+  print "Encrypted", data
+  print "Decrypted", bank_key.decrypt(data)
   return bank_key.decrypt(data)
 
 def encrypt(data, client_id):
   client_info = getClientInfo(client_id)
   client_key = RSA.importKey(client_info['key'])
 
-  return client_key.encrypt(data, 32)
+  return client_key.encrypt(data, 32)[0]
 
 def is_json(json_obj):
   try:
@@ -164,9 +165,10 @@ def recv(s, bank_key):
 
     if is_json(encrypted_data):
       # Shitty hack to intercept the first init msg
-      response = init(bank_key)
-      s.sendto(json.dumps(response), addr)
-      continue
+      if json.loads(encrypted_data).get('type'):
+        response = init(bank_key)
+        s.sendto(json.dumps(response), addr)
+        continue
     data_id = json.loads(decrypt(bank_key, encrypted_data))
     client_id = data_id['id']
     data = data_id['message']
@@ -183,8 +185,6 @@ def recv(s, bank_key):
       elif data['type'] == 'create':
         response = createClient(data)
         response['type'] = 'create'
-      #elif data['type'] == 'init':
-      #  response = init(data)
       else:
         response = getAllTransactions()
     else:

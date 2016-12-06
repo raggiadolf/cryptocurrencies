@@ -24,10 +24,7 @@ def query_bank(s, data, my_id, key):
 		'message': data
 	}
 
-	encrypted_msg = encrypt(obj, key)
-
-	print "Encrypted", encrypted_msg
-
+	encrypted_msg = encrypt(obj, bank_key)
 	s.sendto(encrypted_msg, (bank_host, bank_port))
 
 def processAuthorize(s, my_id):
@@ -133,8 +130,10 @@ def processCmd(cmd, my_id, s, remotePubKey, my_pub_key):
 	else:
 		print "Command not recognized."
 
-def encrypt(message, remotePubKey):
-	return remotePubKey.encrypt(json.dumps(message), 32)[0]
+def encrypt(message, pub_key):
+	print "json", json.dumps(message)
+	print "Encrypted", pub_key.encrypt(json.dumps(message), 32)[0]
+	return pub_key.encrypt(json.dumps(message), 32)[0]
 
 def decrypt(message, key):
 	return key.decrypt(message)
@@ -164,11 +163,13 @@ def handleBankMsg(key, my_id, data, s):
 	elif msg_type == 'create':
 		if resp['success']:
 			print "Account with BBB successfully created."
+		else:
+			print "Could not create account with BBB."
+	elif msg_type == 'init':
+		if resp['success']:
 			global bank_key
 			bank_key = RSA.importKey(resp['key'])
 			processCreateClient(my_id, key.publickey(), s)
-		else:
-			print "Could not create account with BBB."
 	else:
 		print "Unkown type received from BBB", resp
 
