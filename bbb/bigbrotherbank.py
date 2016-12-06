@@ -115,14 +115,15 @@ def createClient(data):
 
     success = True
 
-  return response = {
+  return {
     'success': success
   }
 
-def init(data):
-  return response = {
+def init(bank_key):
+  return {
     'success': True,
-    'key': bank_public_key
+    'key': bank_key.publickey().exportKey(),
+    'type': 'create'
   }
 
 def getClientInfo(client_id):
@@ -136,7 +137,8 @@ def getClientInfo(client_id):
 
   return client_info
 
-def decrypt(data):
+def decrypt(bank_key, data):
+  d = bank_key.decrypt(data)
   return bank_key.decrypt(data)
 
 def encrypt(data, client_id):
@@ -145,28 +147,44 @@ def encrypt(data, client_id):
 
   return client_key.encrypt(data, 32)
 
-def recv(s):
+def is_json(json_obj):
+  try:
+    json.loads(json_obj)
+  except ValueError, e:
+    return False
+  return True
+
+def recv(s, bank_key):
   while True:
     d = s.recvfrom(6144)
-    encrypted_data = json.loads(d[0].decode('utf-8'))
+    encrypted_data = d[0]
     addr = d[1]
 
     if not encrypted_data: break
 
-    data_id = decrypted(encrypted_data)
+    if is_json(encrypted_data):
+      # Shitty hack to intercept the first init msg
+      response = init(bank_key)
+      s.sendto(json.dumps(response), addr)
+      continue
+    data_id = json.loads(decrypt(bank_key, encrypted_data))
     client_id = data_id['id']
     data = data_id['message']
 
     response = ''
     if verifyClients(data):
       if data['type'] == 'authorize':
+        print "Received authorize request"
         response = authorize(data)
+        response['type'] = 'authorize'
       elif data['type'] == 'verify':
         response = verify(data)
+        response['type'] = 'verify'
       elif data['type'] == 'create':
         response = createClient(data)
-      elif data['type'] == 'init':
-        response = init(data)
+        response['type'] = 'create'
+      #elif data['type'] == 'init':
+      #  response = init(data)
       else:
         response = getAllTransactions()
     else:
@@ -233,7 +251,7 @@ def main():
   port = int(sys.argv[1])
 
   bank_key = generateKey()
-  bank_public_key = bank_key.publicKey()
+  bank_public_key = bank_key.publickey()
 
   try:
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -249,7 +267,7 @@ def main():
 
   print 'Socket bind complete'
 
-  recv_thread = Thread(target=recv, args=(s,))
+  recv_thread = Thread(target=recv, args=(s, bank_key,))
   recv_thread.daemon = True
   recv_thread.start()
 

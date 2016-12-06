@@ -1,6 +1,5 @@
 import socket
 from threading import Thread
-import cPickle
 import sys
 import json
 
@@ -27,10 +26,11 @@ def query_bank(s, data, my_id, key):
 
 	encrypted_msg = encrypt(obj, key)
 
-	s.sendto(json.dumps(encrypted_msg), (bank_host, bank_port))
-	return json.loads(s.recv(4096))
+	print "Encrypted", encrypted_msg
 
-def processAuthorize():
+	s.sendto(encrypted_msg, (bank_host, bank_port))
+
+def processAuthorize(s, my_id):
 	print "Input the amount to transfer"
 	amount = int(raw_input('>> '))
 	print "Input the recipients ID"
@@ -42,15 +42,9 @@ def processAuthorize():
 		'amount': amount
 	}
 
-	resp = query_bank(s, auth_obj, my_id, bank_key)
+	query_bank(s, auth_obj, my_id, bank_key)
 
-	if resp['success']:
-		print "Payment authorized"
-		print "Transaction:", resp['transaction_id']
-	else:
-		print "Payment not authorized"
-
-def processVerify():
+def processVerify(s, my_id):
 	print "Input the amount to verify"
 	amount = int(raw_input('>> '))
 	print "Input the payer ID"
@@ -65,12 +59,7 @@ def processVerify():
 		'transaction_id': trans_id
 	}
 
-	resp = query_bank(s, verify_obj, my_id, bank_key)
-
-	if resp['success']:
-		print "Transaction successfully verified by BBB"
-	else:
-		print "Transaction not verified by BBB"
+	query_bank(s, verify_obj, my_id, bank_key)
 
 def processSendId(my_id, s, remotePubKey):
 	encryptedMessage = encrypt(str(my_id), remotePubKey)
@@ -94,37 +83,21 @@ def processGetTransactions(my_id):
 		return
 	printTransactions(resp['transactions'])
 
-def sendInitMessageToBank():
+def sendInitMessageToBank(s):
 	init_obj = {
 		'type': 'init'
 	}
 
 	s.sendto(json.dumps(init_obj), (bank_host, bank_port))
-	resp = json.loads(s.recv(4096))
 
-	if resp['success']:
-		return resp['key']
-	else:
-		return None
-
-def processCreateClient(my_id, my_pub_key):
-	bank_key = sendInitMessageToBank()
-
-	if not bank_key:
-		print "Could not initiate connection with BBB"
-		return
-
+def processCreateClient(my_id, my_pub_key, s):
 	create_obj = {
 		'type': 'create',
 		'id': my_id,
-		'key': my_pub_key
+		'key': my_pub_key.exportKey()
 	}
 
-	resp = query_bank(s, create_obj, my_id, bank_key)
-	if resp['success']:
-		print "Account with BBB successfully created."
-	else:
-		print "Could not create account with BBB."
+	query_bank(s, create_obj, my_id, bank_key)
 
 def processCommands():
 	print "Available commands:"
@@ -145,15 +118,15 @@ def processCmd(cmd, my_id, s, remotePubKey, my_pub_key):
 	if cmd.lower() == 'commands':
 		processCommands()
 	elif cmd.lower() == 'authorize':
-		processAuthorize()
+		processAuthorize(s, my_id)
 	elif cmd.lower() == 'verify':
-		processVerify()
+		processVerify(s, my_id)
 	elif cmd.lower() == 'sendid':
 		processSendId(my_id, s, remotePubKey)
 	elif cmd.lower() == 'gettransactions':
 		processGetTransactions(my_id)
 	elif cmd.lower() == 'createclient':
-		processCreateClient(my_id, my_pub_key)
+		sendInitMessageToBank(s)
 	elif cmd.lower() == 'exit' or cmd.lower() == 'quit' or cmd.lower() == 'q':
 		print "Exiting..."
 		sys.exit()
@@ -161,7 +134,7 @@ def processCmd(cmd, my_id, s, remotePubKey, my_pub_key):
 		print "Command not recognized."
 
 def encrypt(message, remotePubKey):
-	return remotePubKey.encrypt(message, 32)
+	return remotePubKey.encrypt(json.dumps(message), 32)[0]
 
 def decrypt(message, key):
 	return key.decrypt(message)
@@ -169,16 +142,51 @@ def decrypt(message, key):
 def verifyKey(rsakey, signature, key):
 	return rsakey.verify(SHA256.new(cert_text).digest(), signature)
 
+def handleBankMsg(key, my_id, data, s):
+	json_data = json.loads(data)
+	if not json_data.get('type'):
+		resp = decrypt(json_data, key)
+	else:
+		resp = json_data
+
+	msg_type = resp['type']
+	if msg_type == 'authorize':
+		if resp['success']:
+			print "Payment authorized"
+			print "Transaction:", resp['transaction_id']
+		else:
+			print "Payment not authorized"
+	elif msg_type == 'verify':
+		if resp['success']:
+			print "Transaction successfully verified by BBB"
+		else:
+			print "Transaction not verified by BBB"
+	elif msg_type == 'create':
+		if resp['success']:
+			print "Account with BBB successfully created."
+			global bank_key
+			bank_key = RSA.importKey(resp['key'])
+			processCreateClient(my_id, key.publickey(), s)
+		else:
+			print "Could not create account with BBB."
+	else:
+		print "Unkown type received from BBB", resp
+
+
 def recv(s, key, my_id):
 	while True:
 		msg = s.recvfrom(6144)
-		data = cPickle.loads(msg[0])
 		addr = msg[1]
+		if addr != (host, port):
+			# Shitty hack to check whether the message came from the chat server or BBB
+			handleBankMsg(key, my_id, msg[0], s)
+			continue
+		data = msg[0]
 
 		if not data: sys.exit(0)
 
-		decryptedMessage = decrypt(data, key)
-		print 'Remote says: ', decryptedMessage
+		decryptedMessage = json.loads(decrypt(data, key))
+		print 'Remote says: ', decryptedMessage['msg']
 
 def send(s, remotePubKey, my_id, my_pub_key):
 	while True:
@@ -186,13 +194,16 @@ def send(s, remotePubKey, my_id, my_pub_key):
 		if message.startswith('/'):
 			processCmd(message[1:], my_id, s, remotePubKey, my_pub_key)
 			continue
-		encryptedMessage = encrypt(message, remotePubKey)
-		s.sendto(encryptedMessage[0], (host, port))
+		msg_obj = {
+			'msg': message
+		}
+		encryptedMessage = encrypt(msg_obj, remotePubKey)
+		s.sendto(encryptedMessage, (host, port))
 
 def getRemotePublicKey(initmessage, key):
 	remotePubKey = ''
-	if verifyKey(initmessage['key'], initmessage['signature'], key):
-		remotePubKey = initmessage['key']
+	if verifyKey(RSA.importKey(initmessage['key']), initmessage['signature'], key):
+		remotePubKey = RSA.importKey(initmessage['key'])
 	else:
 		print 'Key is not verified'
 	return remotePubKey
@@ -201,7 +212,7 @@ def generateKey():
 	return RSA.generate(2048, rng)
 
 def generateId(key):
-	return SHA256.new(key.exportKey()).digest()
+	return SHA256.new(key.exportKey()).hexdigest()
 
 def generateKeySigObject(key):
 	localPubKey = key.publickey()
@@ -220,8 +231,8 @@ def main():
 	localKey = generateKey()
 	my_id = generateId(localKey.publickey())
 
-	s.sendto(cPickle.dumps(generateKeySigObject(localKey)), (host, port))
-	initmessage = cPickle.loads(s.recvfrom(6144)[0])
+	s.sendto(json.dumps(generateKeySigObject(localKey)), (host, port))
+	initmessage = json.loads(s.recvfrom(6144)[0])
 
 	remotePubKey = getRemotePublicKey(initmessage, localKey)
 
