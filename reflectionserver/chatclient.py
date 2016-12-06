@@ -16,10 +16,19 @@ port = int(sys.argv[2])
 bank_host = sys.argv[3]
 bank_port = int(sys.argv[4])
 
+bank_key = None
+
 # Returns a json object including the information received from BBB
-def query_bank(s, data):
-    s.sendto(json.dumps(data), (bank_host, bank_port))
-    return json.loads(s.recv(4096))
+def query_bank(s, data, my_id, key):
+	obj = {
+		'id': my_id,
+		'message': data
+	}
+
+	encrypted_msg = encrypt(obj, key)
+
+	s.sendto(json.dumps(encrypted_msg), (bank_host, bank_port))
+	return json.loads(s.recv(4096))
 
 def processAuthorize():
 	print "Input the amount to transfer"
@@ -33,7 +42,7 @@ def processAuthorize():
 		'amount': amount
 	}
 
-	resp = query_bank(s, auth_obj)
+	resp = query_bank(s, auth_obj, my_id, bank_key)
 
 	if resp['success']:
 		print "Payment authorized"
@@ -56,7 +65,7 @@ def processVerify():
 		'transaction_id': trans_id
 	}
 
-	resp = query_bank(s, verify_obj)
+	resp = query_bank(s, verify_obj, my_id, bank_key)
 
 	if resp['success']:
 		print "Transaction successfully verified by BBB"
@@ -79,20 +88,39 @@ def processGetTransactions(my_id):
 		'payer_id': my_id
 	}
 
-	resp = query_bank(s, trans_obj)
+	resp = query_bank(s, trans_obj, my_id, bank_key)
 	if not resp['success']:
 		print "No transactions found for this id."
 		return
 	printTransactions(resp['transactions'])
 
+def sendInitMessageToBank():
+	init_obj = {
+		'type': 'init'
+	}
+
+	s.sendto(json.dumps(init_obj), (bank_host, bank_port))
+	resp = json.loads(s.recv(4096))
+
+	if resp['success']:
+		return resp['key']
+	else:
+		return None
+
 def processCreateClient(my_id, my_pub_key):
+	bank_key = sendInitMessageToBank()
+
+	if not bank_key:
+		print "Could not initiate connection with BBB"
+		return
+
 	create_obj = {
 		'type': 'create',
 		'id': my_id,
 		'key': my_pub_key
 	}
 
-	resp = query_bank(s, create_obj)
+	resp = query_bank(s, create_obj, my_id, bank_key)
 	if resp['success']:
 		print "Account with BBB successfully created."
 	else:
