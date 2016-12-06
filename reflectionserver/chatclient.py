@@ -3,7 +3,6 @@ from threading import Thread
 import cPickle
 import sys
 import json
-import uuid
 
 from Crypto.PublicKey import RSA
 from Crypto import Random
@@ -86,6 +85,19 @@ def processGetTransactions(my_id):
 		return
 	printTransactions(resp['transactions'])
 
+def processCreateClient(my_id, my_pub_key):
+	create_obj = {
+		'type': 'create',
+		'id': my_id,
+		'key': my_pub_key
+	}
+
+	resp = query_bank(s, create_obj)
+	if resp['success']:
+		print "Account with BBB successfully created."
+	else:
+		print "Could not create account with BBB."
+
 def processCommands():
 	print "Available commands:"
 	print "\t/authorize"
@@ -96,10 +108,12 @@ def processCommands():
 	print "\t\tSend your ID to your chat recipient"
 	print "\t/gettransactions"
 	print "\t\tGet your transactions from Big Brother Bank"
+	print "\tcreateclient"
+	print "\t\tCreates a client with BBB using your generated ID"
 	print "\t/quit"
 	print "\t\tExit this program"
 
-def processCmd(cmd, my_id, s, remotePubKey):
+def processCmd(cmd, my_id, s, remotePubKey, my_pub_key):
 	if cmd.lower() == 'commands':
 		processCommands()
 	elif cmd.lower() == 'authorize':
@@ -110,6 +124,8 @@ def processCmd(cmd, my_id, s, remotePubKey):
 		processSendId(my_id, s, remotePubKey)
 	elif cmd.lower() == 'gettransactions':
 		processGetTransactions(my_id)
+	elif cmd.lower() == 'createclient':
+		processCreateClient(my_id, my_pub_key)
 	elif cmd.lower() == 'exit' or cmd.lower() == 'quit' or cmd.lower() == 'q':
 		print "Exiting..."
 		sys.exit()
@@ -136,11 +152,11 @@ def recv(s, key, my_id):
 		decryptedMessage = decrypt(data, key)
 		print 'Remote says: ', decryptedMessage
 
-def send(s, remotePubKey, my_id):
+def send(s, remotePubKey, my_id, my_pub_key):
 	while True:
 		message = raw_input('>> ')
 		if message.startswith('/'):
-			processCmd(message[1:], my_id, s, remotePubKey)
+			processCmd(message[1:], my_id, s, remotePubKey, my_pub_key)
 			continue
 		encryptedMessage = encrypt(message, remotePubKey)
 		s.sendto(encryptedMessage[0], (host, port))
@@ -156,8 +172,8 @@ def getRemotePublicKey(initmessage, key):
 def generateKey():
 	return RSA.generate(2048, rng)
 
-def generateId():
-	return uuid.uuid4()
+def generateId(key):
+	return SHA256.new(key.exportKey()).digest()
 
 def generateKeySigObject(key):
 	localPubKey = key.publickey()
@@ -174,7 +190,7 @@ def main():
 	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 	localKey = generateKey()
-	my_id = generateId()
+	my_id = generateId(localKey.publickey())
 
 	s.sendto(cPickle.dumps(generateKeySigObject(localKey)), (host, port))
 	initmessage = cPickle.loads(s.recvfrom(6144)[0])
@@ -187,6 +203,6 @@ def main():
 	recv_thread.daemon = True
 	recv_thread.start()
 
-	send(s, remotePubKey, my_id)
+	send(s, remotePubKey, my_id, localKey.publickey())
 
 main()
