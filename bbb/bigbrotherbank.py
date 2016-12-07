@@ -55,8 +55,8 @@ def find_last_client_output(transactions, client_id):
   return None
 
 def check_transaction_in_out_amount(inputs, outputs):
-  in_sum = sum(i.amount for i in inputs)
-  out_sum = sum(o.amount for o in outputs)
+  in_sum = sum(i['amount'] for i in inputs)
+  out_sum = sum(o['amount'] for o in outputs)
 
   return in_sum == out_sum
 
