@@ -148,10 +148,11 @@ def verifyKey(rsakey, signature, key):
 
 def handleBankMsg(key, my_id, data, s):
 	json_data = json.loads(data)
-	if not json_data.get('type'):
-		resp = decrypt(json_data, key)
-	else:
+
+	if type(json.loads(data)) is not list:
 		resp = json_data
+	else:
+		resp = decrypt(json_data, key)
 
 	msg_type = resp['type']
 
