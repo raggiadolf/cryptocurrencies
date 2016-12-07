@@ -105,8 +105,6 @@ def createClient(data):
 
   success = False
 
-  print "clients", clients
-
   # See if we already have a client with this id
   client = filter(lambda client: client['id'] == data['id'], clients)
   if not client:
@@ -122,18 +120,6 @@ def createClient(data):
   else:
     # We found a client with this id, don't add him to the config file
     success = False
-
-  '''
-  if not clients.get(data['id']):
-    new_client = {
-      'key': data['key']
-    }
-    config[data['id']] = new_client
-    with open('config.json', 'w') as f:
-      f.write(json.dumps(config))
-
-    success = True
-  '''
 
   return {
     'success': success
@@ -212,7 +198,7 @@ def recv(s, bank_key):
       response = getAllTransactions()
 
     encrypted_response = encrypt(response, client_id)
-    s.sendto(json.dumps(encrypted_response), addr)
+    s.sendto(encrypted_response, addr)
 
 def openConfigFile():
   with open('config.json') as data_file:

@@ -140,7 +140,7 @@ def encrypt(message, pub_key):
 	return json.dumps(messages_encrypted)
 
 def decrypt(message, key):
-	list_decrypted = [key.decrypt(base64.b64decode(chunk)) for chunk in json.loads(message)]
+	list_decrypted = [key.decrypt(base64.b64decode(chunk)) for chunk in message]
 	return json.loads(''.join(list_decrypted))
 
 def verifyKey(rsakey, signature, key):
@@ -149,7 +149,7 @@ def verifyKey(rsakey, signature, key):
 def handleBankMsg(key, my_id, data, s):
 	json_data = json.loads(data)
 
-	if type(json.loads(data)) is not list:
+	if type(json_data) is not list:
 		resp = json_data
 	else:
 		resp = decrypt(json_data, key)
