@@ -1,10 +1,10 @@
 ## Cryptocurrencies
 
-- [ ] Single authorization
-- [ ] Multiple authorization
+- [x] Single authorization
+- [x] Multiple authorization
 - [ ] Verification
 - [x] Encryption between clients & bank
-- [ ] Encrypted chat between clients
+- [x] Encrypted chat between clients
 - [x] Allow users to create a unique client with the bank
 - [ ] Allow users to create multiple clients with the bank
 - [ ] Allow a user to request transactions he is involved in with the bank
