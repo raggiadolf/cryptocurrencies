@@ -46,27 +46,126 @@ def validateTransactionId(transactions, transaction_id):
   else:
     return True
 
-def authorize(auth_obj):
-  with open('config.json') as data_file:
-    config = json.load(data_file)
-  clients = config['clients']
-  payer_id = auth_obj['payer_id']
-  payer_balance = clients[payer_id]['amount']
-  print 'payer balance', payer_balance, 'amount to charge', auth_obj['amount']
+def find_last_client_output(transactions, client_id):
+  for t in transactions:
+    c = filter(lambda client: client['id'] == client_id, t['output'])
+    if c:
+      return t, c
 
-  success = False
-  if payer_balance >= auth_obj['amount']:
-    success = True
-    transaction_id = generateTransactionId(config['transactions'])
-    transferFunds(auth_obj, transaction_id)
-    return {
-      'success': True,
-      'transaction_id': transaction_id
-    }
-  else:
+  return None
+
+def check_transaction_in_out_amount(inputs, outputs):
+  in_sum = sum(i.amount for i in inputs)
+  out_sum = sum(o.amount for o in outputs)
+
+  return in_sum == out_sum
+
+def check_if_clients_are_valid(bank_clients, inputs, outputs):
+  for i in inputs:
+    c = filter(lambda client: client['id'] == i['id'], bank_clients)
+    if not c:
+      return False
+
+  for o in outputs:
+    c = filter(lambda client: client['id'] == o['id'], bank_clients)
+    if not c:
+      return False
+
+  return True
+
+def check_input_balance(transactions, inputs):
+  for i in inputs:
+    if get_client_balance(transactions, i['id']) < i['amount']:
+      return False
+
+  return True
+
+def get_client_balance(transactions, client_id):
+  last_transaction, last_output = find_last_client_output(transactions, client_id)
+  if last_output:
+    return last_output['amount']
+  return 0
+
+def authorize(auth_obj):
+  config = openConfigFile()
+  clients = config['clients']
+  transactions = config['transactions']
+
+  if not check_transaction_in_out_amount(auth_obj['input'], auth_obj['output']):
+    # In/Out amounts not equal, return error msg?
     return {
       'success': False
     }
+
+  if not check_if_clients_are_valid(clients, auth_obj['input'], auth_obj['output']):
+    # Some client(s) participating in the transaction are not clients of the bank
+    return {
+      'success': False
+    }
+
+  if not check_input_balance(transactions, auth_obj['input']):
+    # Some payer does not have the neccessary funds available
+    return {
+      'success': False
+    }
+
+  transaction_id = generateTransactionId(transactions)
+  transaction_input = []
+  transaction_output = []
+
+  for i in auth_obj['input']:
+    client_balance = get_client_balance(transactions, i['id'])
+    prev_amount = client_balance
+    new_amount = client_balance - i['amount']
+
+    new_input_obj = {
+      "id": i['id'],
+      "amount": prev_amount,
+      "signature": i['signature']
+    }
+    transaction_input.append(new_input_obj)
+
+    new_output_obj = {
+      "id": i['id'],
+      "amount": new_amount,
+      "signature": i['signature']
+    }
+    transaction_output.append(new_output_obj)
+
+  for o in auth_obj['output']:
+    client_balance = get_client_balance(transactions, i['id'])
+    prev_amount = client_balance
+    new_amount = client_balance + i['amount']
+
+    new_input_obj = {
+      "id": i['id'],
+      "amount": prev_amount,
+      "signature": i['signature']
+    }
+    transaction_input.append(new_input_obj)
+
+    new_output_obj = {
+      "id": i['id'],
+      "amount": new_amount,
+      "signature": i['signature']
+    }
+    transaction_output.append(new_amount)
+
+  transactions.insert(0, {
+      "id": transaction_id,
+      "input": transaction_input,
+      "output": transaction_output
+    })
+  config['transactions'] = transactions
+
+
+  with open('config.json', 'w') as f:
+    f.write(json.dumps(config))
+
+  return {
+    'success': True,
+    'transaction_id': transaction_id
+  }
 
 def verifyClients(data):
   with open('config.json') as data_file:
