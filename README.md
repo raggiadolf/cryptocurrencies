@@ -1,6 +1,7 @@
 ## Cryptocurrencies
 
 - [ ] Single authorization
+- [ ] Multiple authorization
 - [ ] Verification
 - [ ] Encryption between clients & bank
 - [ ] Encrypted chat between clients
