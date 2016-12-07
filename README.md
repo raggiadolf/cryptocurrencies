@@ -11,3 +11,5 @@
 - [ ] Move the banks config to a blockchain style transaction system
 - [ ] Create an audit method within the bank
 - [ ] Create a client side audit which requests the blockchain from the bank and verifies it
+- [ ] Signatures between client and bank
+- [ ] Signatures between multiple clients
