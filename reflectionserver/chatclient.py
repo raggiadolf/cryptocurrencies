@@ -140,7 +140,8 @@ def encrypt(message, pub_key):
 	return json.dumps(messages_encrypted)
 
 def decrypt(message, key):
-	return key.decrypt(message)
+	list_decrypted = [key.decrypt(base64.b64decode(chunk)) for chunk in json.loads(message)]
+	return json.loads(''.join(list_decrypted))
 
 def verifyKey(rsakey, signature, key):
 	return rsakey.verify(SHA256.new(cert_text).digest(), signature)

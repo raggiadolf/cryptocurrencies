@@ -138,6 +138,9 @@ def getClientInfo(client_id):
 
   return client_info
 
+def string_to_chunks(string, length):
+    return (string[0+i:length+i] for i in range(0, len(string), length))
+
 def decrypt(bank_key, data):
   list_decrypted = [bank_key.decrypt(base64.b64decode(chunk)) for chunk in json.loads(data)]
   return json.loads(''.join(list_decrypted))
@@ -146,7 +149,9 @@ def encrypt(data, client_id):
   client_info = getClientInfo(client_id)
   client_key = RSA.importKey(client_info['key'])
 
-  return client_key.encrypt(data, 32)[0]
+  messages = list(string_to_chunks(json.dumps(data), 256))
+  messages_encrypted = [base64.b64encode(client_key.encrypt(m, 32)[0]) for m in messages]
+  return json.dumps(messages_encrypted)
 
 def is_json(json_obj):
   try:
