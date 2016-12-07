@@ -105,9 +105,27 @@ def createClient(data):
 
   success = False
 
+  print "clients", clients
+
+  # See if we already have a client with this id
+  client = filter(lambda client: client['id'] == data['id'], clients)
+  if not client:
+    # No client found in our config file with this id
+    clients.append({
+        'id': data['id'],
+        'key': data['key']
+      })
+    config['clients'] = clients
+    with open('config.json', 'w') as f:
+      f.write(json.dumps(config))
+    success = True
+  else:
+    # We found a client with this id, don't add him to the config file
+    success = False
+
+  '''
   if not clients.get(data['id']):
     new_client = {
-      'amount': 0.0,
       'key': data['key']
     }
     config[data['id']] = new_client
@@ -115,6 +133,7 @@ def createClient(data):
       f.write(json.dumps(config))
 
     success = True
+  '''
 
   return {
     'success': success
@@ -128,15 +147,15 @@ def init(bank_key):
   }
 
 def getClientInfo(client_id):
-  clients = openConfigFile['clients']
+  clients = openConfigFile()['clients']
 
-  client_info = clients[client_id]
+  client_info = filter(lambda client: client['id'] == client_id, clients)
 
   if not client_info:
     print "Could not find client info"
     return
 
-  return client_info
+  return client_info[0]
 
 def string_to_chunks(string, length):
     return (string[0+i:length+i] for i in range(0, len(string), length))
@@ -179,23 +198,18 @@ def recv(s, bank_key):
     data = data_id['message']
 
     response = ''
-    if verifyClients(data):
-      if data['type'] == 'authorize':
-        print "Received authorize request"
-        response = authorize(data)
-        response['type'] = 'authorize'
-      elif data['type'] == 'verify':
-        response = verify(data)
-        response['type'] = 'verify'
-      elif data['type'] == 'create':
-        response = createClient(data)
-        response['type'] = 'create'
-      else:
-        response = getAllTransactions()
+    if data['type'] == 'authorize':
+      print "Received authorize request"
+      response = authorize(data)
+      response['type'] = 'authorize'
+    elif data['type'] == 'verify':
+      response = verify(data)
+      response['type'] = 'verify'
+    elif data['type'] == 'create':
+      response = createClient(data)
+      response['type'] = 'create'
     else:
-      response = {
-        'success': False
-      }
+      response = getAllTransactions()
 
     encrypted_response = encrypt(response, client_id)
     s.sendto(json.dumps(encrypted_response), addr)
