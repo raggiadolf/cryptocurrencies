@@ -48,27 +48,27 @@ def generate_authorization_object_info(clients_info):
 
 def get_authorization_info_from_input(initial_message, client_message):
 	clients_info = {}
- 	print "Input the number of {0}".format(initial_message)
-  clients_count = int(raw_input('>> '))
-  clients_info['count'] = clients_count
-  clients_info['amounts'] = map(int, receive_input(clients_count, "amount", client_message))
-  clients_info['ids'] = receive_input(clients_count, "ID", client_message)
-  clients_info['signatures'] = receive_input(clients_count, "signature", client_message)
-  return clients_info
+	print "Input the number of {0}".format(initial_message)
+	clients_count = int(raw_input('>> '))
+	clients_info['count'] = clients_count
+	clients_info['amounts'] = map(int, receive_input(clients_count, "amount", client_message))
+	clients_info['ids'] = receive_input(clients_count, "ID", client_message)
+	clients_info['signatures'] = receive_input(clients_count, "signature", client_message)
+	return clients_info
 
 def processAuthorize(s, my_id):
 	payers_info = get_authorization_info_from_input("participants (payers)", "payer")
 	receivers_info = get_authorization_info_from_input("receivers of the money", "receiver")
 
-  auth_obj = {
+	auth_obj = {
     'type': 'authorize',
     'input': generate_authorization_object_info(payers_info),
     'output':   generate_authorization_object_info(receivers_info)
-  }
+	}
 
-  print 'all that stuff auth obj', auth_obj
+	print 'all that stuff auth obj', auth_obj
 
-  query_bank(s, auth_obj, my_id, bank_key)
+	query_bank(s, auth_obj, my_id, bank_key)
 
 def processVerify(s, my_id):
 	print "Input the amount to verify"
