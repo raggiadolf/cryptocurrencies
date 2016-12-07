@@ -86,6 +86,15 @@ def get_client_balance(transactions, client_id):
     return last_output['amount']
   return 0
 
+def verify_client_signature(bank_clients, auth_obj, client_id, signature):
+  c = filter(lambda client: client['id'] == client_id, bank_clients)
+  if not c:
+    # Could not find a reference to this client, something went wrong!
+    return False
+
+  client_key = RSA.importKey(c['key'])
+  return client_key.verify(json.dumps(auth_obj, signature))
+
 def authorize(auth_obj):
   config = openConfigFile()
   clients = config['clients']
@@ -93,18 +102,21 @@ def authorize(auth_obj):
 
   if not check_transaction_in_out_amount(auth_obj['input'], auth_obj['output']):
     # In/Out amounts not equal, return error msg?
+    print "Transaction in and out amount not equal"
     return {
       'success': False
     }
 
   if not check_if_clients_are_valid(clients, auth_obj['input'], auth_obj['output']):
     # Some client(s) participating in the transaction are not clients of the bank
+    print "Some client in the transaction not validated in the system"
     return {
       'success': False
     }
 
   if not check_input_balance(transactions, auth_obj['input']):
     # Some payer does not have the neccessary funds available
+    print "Some payer does not have the neccessary funds available"
     return {
       'success': False
     }
@@ -114,6 +126,12 @@ def authorize(auth_obj):
   transaction_output = []
 
   for i in auth_obj['input']:
+    if not verify_client_signature(clients, auth_obj, i['id'], i['signature']):
+      # This client's signature does not check out with this transaction
+      print "Some clients signature does not match"
+      return {
+        'success': False
+      }
     client_balance = get_client_balance(transactions, i['id'])
     prev_amount = client_balance
     new_amount = client_balance - i['amount']
@@ -133,6 +151,12 @@ def authorize(auth_obj):
     transaction_output.append(new_output_obj)
 
   for o in auth_obj['output']:
+    if not verify_client_signature(clients, auth_obj, o['id'], o['signature']):
+      # This client's signature does not check out with this transaction
+      print "Some clients signature does not match"
+      return {
+        'success': False
+      }
     client_balance = get_client_balance(transactions, i['id'])
     prev_amount = client_balance
     new_amount = client_balance + i['amount']
