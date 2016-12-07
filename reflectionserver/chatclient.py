@@ -154,6 +154,8 @@ def handleBankMsg(key, my_id, data, s):
 		resp = json_data
 
 	msg_type = resp['type']
+
+	msg_type = resp['type']
 	if msg_type == 'authorize':
 		if resp['success']:
 			print "Payment authorized"
@@ -191,7 +193,7 @@ def recv(s, key, my_id):
 
 		if not data: sys.exit(0)
 
-		decryptedMessage = json.loads(decrypt(data, key))
+		decryptedMessage = decrypt(data, key)
 		print 'Remote says: ', decryptedMessage['msg']
 
 def send(s, remotePubKey, my_id, my_pub_key):
