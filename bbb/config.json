@@ -1,1 +1,1 @@
-{"clients": {"abcd": {"amount": 10.0}, "qwer": {"amount": 7.0}, "asdf": {"amount": 5.0}}, "transactions": {"55929d9d-762f-4b00-b118-94cc81586f34": {"receiver_id": "abcd", "amount": 3, "payer_id": "asdf"}, "19444e88-4fa6-4408-9a74-6a592d187d0b": {"receiver_id": "qwer", "amount": 2, "payer_id": "asdf"}}}
+{"clients": [{"id": "asdf", "key": "gibberish"}, {"id": "qwer", "key": "robust"}], "transactions": []}
