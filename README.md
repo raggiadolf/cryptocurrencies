@@ -11,5 +11,7 @@
 - [ ] Move the banks config to a blockchain style transaction system
 - [ ] Create an audit method within the bank
 - [ ] Create a client side audit which requests the blockchain from the bank and verifies it
-- [ ] Signatures between client and bank
-- [ ] Signatures between multiple clients
+- [x] Signatures between client and bank
+- [x] Signatures between multiple clients
+- [ ] Don't allow clients to start transactions before creating a client
+- [ ] Make bank reject authorizations which include negative values
