@@ -41,16 +41,21 @@ def generateTransactionId(transactions):
     generateTransactionId(transactions)
 
 def validateTransactionId(transactions, transaction_id):
-  if transactions.get(transaction_id):
+  if transactions[transaction_id]:
     return False
   else:
     return True
 
 def find_last_client_output(transactions, client_id):
-  for t in transactions:
-    c = filter(lambda client: client['id'] == client_id, t['output'])
+  t = transactions[transactions['head']]
+  while t:
+    c = filter(lambda client:client['id'] == client_id, t['output'])
     if c:
       return t, c
+    prev_block = t['previous_block']
+    if not prev_block:
+      break
+    t = transactions[prev_block]
 
   return None
 
@@ -81,7 +86,7 @@ def check_input_balance(transactions, inputs):
   return True
 
 def get_client_balance(transactions, client_id):
-  last_transaction, last_output = find_last_client_output(transactions, client_id)
+  last_transaction, last_output = find_last_client_output(transactions, client_id) or (None, None)
   if last_output:
     return last_output['amount']
   return 0
@@ -175,13 +180,17 @@ def authorize(auth_obj):
     }
     transaction_output.append(new_amount)
 
-  transactions.insert(0, {
-      "id": transaction_id,
-      "input": transaction_input,
-      "output": transaction_output
-    })
-  config['transactions'] = transactions
+  new_transaction = {
+    "id": transaction_id,
+    "input": transaction_input,
+    "output": transaction_output,
+    "previous_block": transactions['head']
+  }
+  new_transaction_hash = SHA256.new(json.dumps(new_transaction)).hexdigest()
+  transactions[new_transaction_hash] = new_transaction
+  transactions['head'] = new_transaction_hash
 
+  config['transactions'] = transactions
 
   with open('config.json', 'w') as f:
     f.write(json.dumps(config))
