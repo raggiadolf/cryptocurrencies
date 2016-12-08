@@ -3,6 +3,7 @@ from threading import Thread
 import sys
 import json
 import base64
+import getpass
 
 from Crypto.PublicKey import RSA
 from Crypto import Random
@@ -265,7 +266,16 @@ def generateKeySigObject(key):
 def main():
 	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-	localKey = generateKey()
+	print "Input '1' to use a generated key, input '2' to use your own key (which should be located in the pwd named 'key.pem'"
+	option = raw_input('>> ')
+	if option == "1":
+		localKey = generateKey()
+	elif option == "2":
+		f = open('key.pem', 'r')
+		print "Input passphrase"
+		passphrase = getpass.getpass('>> ')
+		localKey = RSA.importKey(f.read(),  passphrase=passphrase)
+		f.close()
 	my_id = generateId(localKey.publickey())
 
 	s.sendto(json.dumps(generateKeySigObject(localKey)), (host, port))
