@@ -67,8 +67,6 @@ def processAuthorize(s, my_id):
     'output':   generate_authorization_object_info(receivers_info)
 	}
 
-	print 'all that stuff auth obj', auth_obj
-
 	query_bank(s, auth_obj, my_id, bank_key)
 
 def processVerify(s, my_id):
@@ -268,6 +266,7 @@ def main():
 
 	print "Input '1' to use a generated key, input '2' to use your own key (which should be located in the pwd named 'key.pem'"
 	option = raw_input('>> ')
+
 	if option == "1":
 		localKey = generateKey()
 		print "New key generated just for this session"

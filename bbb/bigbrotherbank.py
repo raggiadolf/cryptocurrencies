@@ -41,7 +41,7 @@ def generateTransactionId(transactions):
     generateTransactionId(transactions)
 
 def validateTransactionId(transactions, transaction_id):
-  if transactions[transaction_id]:
+  if transactions.get(transaction_id):
     return False
   else:
     return True
@@ -51,7 +51,7 @@ def find_last_client_output(transactions, client_id):
   while t:
     c = filter(lambda client:client['id'] == client_id, t['output'])
     if c:
-      return t, c
+      return t, c[0]
     prev_block = t['previous_block']
     if not prev_block:
       break
@@ -97,8 +97,8 @@ def verify_client_signature(bank_clients, auth_obj, client_id, signature):
     # Could not find a reference to this client, something went wrong!
     return False
 
-  client_key = RSA.importKey(c['key'])
-  return client_key.verify(json.dumps(auth_obj, signature))
+  client_key = RSA.importKey(c[0]['key'])
+  return client_key.verify(json.dumps(auth_obj), signature)
 
 def authorize(auth_obj):
   config = openConfigFile()
