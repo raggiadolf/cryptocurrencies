@@ -270,12 +270,14 @@ def main():
 	option = raw_input('>> ')
 	if option == "1":
 		localKey = generateKey()
+		print "New key generated just for this session"
 	elif option == "2":
 		f = open('key.pem', 'r')
 		print "Input passphrase"
 		passphrase = getpass.getpass('>> ')
 		localKey = RSA.importKey(f.read(),  passphrase=passphrase)
 		f.close()
+		print "Private key imported from 'key.pem'"
 	my_id = generateId(localKey.publickey())
 
 	s.sendto(json.dumps(generateKeySigObject(localKey)), (host, port))
