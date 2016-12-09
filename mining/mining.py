@@ -31,9 +31,11 @@ def update_blockchain(new_block):
     blockchain[new_block_hash] = new_block
 
 def test_new_block(new_block, mask_string):
-    #new_block["previous_block"] = SHA256.new(json.dumps(blockchain[blockchain["head"]])).hexdigest()
+    is_valid_data = False
+    if new_block["previous_block"] == blockchain["head"] and new_block["counter"] == (blockchain[blockchain["head"]]["counter"] + 1):
+            is_valid_data = True
     new_block_hash = SHA256.new(json.dumps(new_block)).hexdigest()
-    return test_bits(hash_to_bits(new_block_hash), mask_string)
+    return is_valid_data and test_bits(hash_to_bits(new_block_hash), mask_string)
 
 def hash_to_bits(hash):
   bits = bitarray(format(int(hash, 16), '0256b'))
