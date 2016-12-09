@@ -2,13 +2,16 @@ from Crypto.Hash import SHA256, MD5
 import time
 from bitarray import bitarray
 import json
+import sys
+
+difficulty = int(sys.argv[1])
 
 block = {
     "previous_block": None,
     "comment": "Satoshi",
     "timestamp": "",
     "counter": 0,
-    "difficulty": 20,
+    "difficulty": difficulty,
     "nonce": ""
 }
 zero_mask_string = bitarray('0'*256)
