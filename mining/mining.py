@@ -69,21 +69,19 @@ def worker(block, tid, mask_str, q):
         proposed_block["nonce"] = MD5.new(json.dumps(proposed_block)).hexdigest()
         t = SHA256.new(json.dumps(proposed_block)).hexdigest()
         if test_bits(hash_to_bits(t), mask_str):
-            print "Worker: q.full:", q.full()
-            print "Returning block", proposed_block
             q.put(proposed_block)
             return
             #print "q after put", q, q.qsize()
         i = i + 1
 
 def start_workers(block, mask_str, no_of_workers, threads, q):
-    print "Foreman: Starting workers"
     for i in range(no_of_workers):
         t = Thread(target=worker, args=(block, i, mask_str, q))
         t.start()
         threads.append(t)
 
 def main():
+    global someone_found_solution
     no_of_workers = int(sys.argv[1])
     print "Starting {0} workers".format(no_of_workers)
     mask_str = create_mask(get_head_block()["difficulty"])
@@ -92,14 +90,12 @@ def main():
     q = Queue.Queue(1)
 
     while True:
+        someone_found_solution = False
         start_workers(get_head_block(), mask_str, no_of_workers, threads, q)
 
         new_block = q.get()
-        print "Foreman: got a new block from q, block", new_block
-        print "Foreman: got a new block from q, hash", SHA256.new(json.dumps(new_block)).hexdigest()
         if test_new_block(new_block, mask_str):
             print "Found a new solution", new_block
-            global someone_found_solution
             someone_found_solution = True
             for t in threads:
                 print "Waiting for ", t
