@@ -12,6 +12,7 @@ rng = Random.new().read
 from pprint import pprint
 from threading import Thread
 
+cert_text = "This is a text to sign and verify"
 bank_public_key = None
 
 def generateKey():
@@ -91,12 +92,11 @@ def get_client_balance(transactions, client_id):
     return last_output['amount']
   return 0
 
-def verify_client_signature(bank_clients, auth_obj, client_id, signature):
+def verify_client_signature(bank_clients, verify_obj, client_id, signature):
   c = filter(lambda client: client['id'] == client_id, bank_clients)
   if not c:
     # Could not find a reference to this client, something went wrong!
     return False
-
   client_key = RSA.importKey(c[0]['key'])
   return client_key.verify(json.dumps(auth_obj), signature)
 
@@ -126,12 +126,17 @@ def authorize(auth_obj):
       'success': False
     }
 
+  verify_obj = {
+    'input': [{ 'id': i['id'], 'amount': i['amount'] } for i in auth_obj['input']],
+    'output': [{ 'id': i['id'], 'amount': i['amount'] } for i in auth_obj['output']]
+  }
+
   transaction_id = generateTransactionId(transactions)
   transaction_input = []
   transaction_output = []
 
   for i in auth_obj['input']:
-    if not verify_client_signature(clients, auth_obj, i['id'], i['signature']):
+    if not verify_client_signature(clients, verify_obj, i['id'], i['signature']):
       # This client's signature does not check out with this transaction
       print "Some clients signature does not match"
       return {
@@ -156,29 +161,29 @@ def authorize(auth_obj):
     transaction_output.append(new_output_obj)
 
   for o in auth_obj['output']:
-    if not verify_client_signature(clients, auth_obj, o['id'], o['signature']):
+    if not verify_client_signature(clients, verify_obj, o['id'], o['signature']):
       # This client's signature does not check out with this transaction
       print "Some clients signature does not match"
       return {
         'success': False
       }
-    client_balance = get_client_balance(transactions, i['id'])
+    client_balance = get_client_balance(transactions, o['id'])
     prev_amount = client_balance
-    new_amount = client_balance + i['amount']
+    new_amount = client_balance + o['amount']
 
     new_input_obj = {
-      "id": i['id'],
+      "id": o['id'],
       "amount": prev_amount,
-      "signature": i['signature']
+      "signature": o['signature']
     }
     transaction_input.append(new_input_obj)
 
     new_output_obj = {
-      "id": i['id'],
+      "id": o['id'],
       "amount": new_amount,
-      "signature": i['signature']
+      "signature": o['signature']
     }
-    transaction_output.append(new_amount)
+    transaction_output.append(new_output_obj)
 
   new_transaction = {
     "id": transaction_id,
@@ -334,7 +339,7 @@ def recv(s, bank_key):
 
 def openConfigFile():
   with open('config.json') as data_file:
-    return json.load(data_file)
+    return json.load(data_file, strict=False)
 
 def printClientTransactions(client, is_payer):
   transactions = openConfigFile()['transactions']

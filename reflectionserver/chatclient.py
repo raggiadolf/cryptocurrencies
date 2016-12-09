@@ -8,6 +8,7 @@ import getpass
 from Crypto.PublicKey import RSA
 from Crypto import Random
 from Crypto.Hash import SHA256
+from ast import literal_eval as make_tuple
 rng = Random.new().read
 
 cert_text = "This is a text to sign and verify"
@@ -37,13 +38,13 @@ def receive_input(participant_count, message, client):
     data.append(input_message)
   return data
 
-def generate_authorization_object_info(clients_info):
+def generate_authorization_object_info(clients_info, additional_info):
   data = []
   for i in range(clients_info['count']):
   	data.append({
   	            'id': clients_info['ids'][i],
   	            'amount': clients_info['amounts'][i],
-  	            'signature': clients_info['signatures'][i]
+  	            'signature': make_tuple(clients_info['signatures'][i]) # make_tuple used because the signatures need to be a tuple
   	            })
   return data
 
@@ -54,19 +55,20 @@ def get_authorization_info_from_input(initial_message, client_message):
 	clients_info['count'] = clients_count
 	clients_info['amounts'] = map(int, receive_input(clients_count, "amount", client_message))
 	clients_info['ids'] = receive_input(clients_count, "ID", client_message)
+
 	clients_info['signatures'] = receive_input(clients_count, "signature", client_message)
 	return clients_info
 
 def processAuthorize(s, my_id):
+	# get payers / receivers information from input
 	payers_info = get_authorization_info_from_input("participants (payers)", "payer")
 	receivers_info = get_authorization_info_from_input("receivers of the money", "receiver")
 
 	auth_obj = {
     'type': 'authorize',
-    'input': generate_authorization_object_info(payers_info),
-    'output':   generate_authorization_object_info(receivers_info)
+    'input': generate_authorization_object_info(payers_info, receivers_info),
+    'output':   generate_authorization_object_info(receivers_info, payers_info)
 	}
-
 	query_bank(s, auth_obj, my_id, bank_key)
 
 def processVerify(s, my_id):
@@ -258,7 +260,7 @@ def generateKeySigObject(key):
 		'key': localPubKey.exportKey(),
 		'signature': signature
 	}
-
+	print "key sig obj", keysig_object
 	return keysig_object
 
 def main():
