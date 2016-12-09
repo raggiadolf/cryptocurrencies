@@ -5,18 +5,19 @@ from Crypto.Hash import SHA256, MD5
 import time
 from bitarray import bitarray
 import json
+from pprint import pprint
 
 someone_found_solution = False
 zero_mask_string = bitarray('0'*256)
 
 blockchain = {
-    "head": "154971044876302db71bcd6d972dafc73b0f7ed385007d52be109b05c9800000",
-    "154971044876302db71bcd6d972dafc73b0f7ed385007d52be109b05c9800000": {
+    "head": "80dacec51a15d70091306ae7175ce02ffeb36a6786c0d0fbef99617f29300000",
+    "80dacec51a15d70091306ae7175ce02ffeb36a6786c0d0fbef99617f29300000": {
         "comment": "Satoshi",
-        "nonce": "65963a5364864c6a36a36a3356a8c8c5",
-        "timestamp": 1481282448,
+        "nonce": "e928213b91945a5cd539c7057cb5860a",
+        "timestamp": 1481288588,
         "counter": 0,
-        "difficulty": 16,
+        "difficulty": 20,
         "previous_block": None
     }
 }
@@ -30,8 +31,10 @@ def update_blockchain(new_block):
     blockchain[new_block_hash] = new_block
 
 def test_new_block(new_block, mask_string):
-    new_block["previous_block"] = SHA256.new(json.dumps(blockchain[blockchain["head"]])).hexdigest()
+    #new_block["previous_block"] = SHA256.new(json.dumps(blockchain[blockchain["head"]])).hexdigest()
     new_block_hash = SHA256.new(json.dumps(new_block)).hexdigest()
+    print "new_block", new_block
+    print "new_block_hash", new_block_hash
     return test_bits(hash_to_bits(new_block_hash), mask_string)
 
 def hash_to_bits(hash):
@@ -47,11 +50,12 @@ def create_mask(mlen):
   mask_string = bitarray('0'*(256-mlen) + mask)
   return mask_string
 
-def worker(block, id, mask_str, q):
+def worker(block, tid, mask_str, q):
+    print "Worker {0} started".format(tid)
     global someone_found_solution
     i = 0
     proposed_block = {}
-    proposed_block["comment"] = str(id)
+    proposed_block["comment"] = str(tid)
     proposed_block["counter"] = block["counter"] + 1
     proposed_block["difficulty"] = block["difficulty"]
     proposed_block["previous_block"] = SHA256.new(json.dumps(block)).hexdigest()
@@ -65,15 +69,17 @@ def worker(block, id, mask_str, q):
         proposed_block["nonce"] = MD5.new(json.dumps(proposed_block)).hexdigest()
         t = SHA256.new(json.dumps(proposed_block)).hexdigest()
         if test_bits(hash_to_bits(t), mask_str):
-            print "Worker: Found proposed new block, returning"
+            print "Worker: q.full:", q.full()
+            print "Returning block", proposed_block
             q.put(proposed_block)
-            print "q after put", q, q.qsize()
+            return
+            #print "q after put", q, q.qsize()
         i = i + 1
 
 def start_workers(block, mask_str, no_of_workers, threads, q):
+    print "Foreman: Starting workers"
     for i in range(no_of_workers):
         t = Thread(target=worker, args=(block, i, mask_str, q))
-        t.daemon = True
         t.start()
         threads.append(t)
 
@@ -83,25 +89,33 @@ def main():
     mask_str = create_mask(get_head_block()["difficulty"])
 
     threads = []
-    q = Queue.Queue()
+    q = Queue.Queue(1)
 
     while True:
         start_workers(get_head_block(), mask_str, no_of_workers, threads, q)
 
         new_block = q.get()
-        print "Foreman: got a new block from q"
-        isBlockVerified = test_new_block(new_block, mask_str)
-        print 'the new block was verified? ', isBlockVerified
-        while not isBlockVerified:
-            print "Found a new solution, restarting EVERYTHING"
+        print "Foreman: got a new block from q, block", new_block
+        print "Foreman: got a new block from q, hash", SHA256.new(json.dumps(new_block)).hexdigest()
+        if test_new_block(new_block, mask_str):
+            print "Found a new solution", new_block
+            global someone_found_solution
             someone_found_solution = True
             for t in threads:
+                print "Waiting for ", t
                 t.join()
+            print "Threads stopped, updating blockchain"
             update_blockchain(new_block)
             del threads
             threads = []
             del q
-            q = Queue.Queue()
+            q = Queue.Queue(1)
+
+            print "Status of blockchain:"
+            pprint(blockchain)
+        else:
+            print "New solution not verified", new_block
+            print "blockchain atm", blockchain
 
 
 main()
