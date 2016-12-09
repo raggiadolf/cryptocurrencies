@@ -16,7 +16,7 @@ blockchain = {
         "nonce": "65963a5364864c6a36a36a3356a8c8c5",
         "timestamp": 1481282448,
         "counter": 0,
-        "difficulty": 21,
+        "difficulty": 16,
         "previous_block": None
     }
 }
@@ -47,7 +47,7 @@ def create_mask(mlen):
   mask_string = bitarray('0'*(256-mlen) + mask)
   return mask_string
 
-def worker(block, id, mask_str):
+def worker(block, id, mask_str, q):
     global someone_found_solution
     i = 0
     proposed_block = {}
@@ -58,7 +58,7 @@ def worker(block, id, mask_str):
     proposed_block["nonce"] = "" # Empty to begin with, will be set on the second iteration
 
     while True:
-        if i % 1000 == 0: 
+        if i % 1000 == 0:
             if someone_found_solution: return
 
         proposed_block["timestamp"] = int(time.time())
@@ -67,12 +67,12 @@ def worker(block, id, mask_str):
         if test_bits(hash_to_bits(t), mask_str):
             print "Worker: Found proposed new block, returning"
             q.put(proposed_block)
-
+            print "q after put", q, q.qsize()
         i = i + 1
 
-def start_workers(block, mask_str, no_of_workers, threads):
+def start_workers(block, mask_str, no_of_workers, threads, q):
     for i in range(no_of_workers):
-        t = Thread(target=worker, args=(block, i, mask_str))
+        t = Thread(target=worker, args=(block, i, mask_str, q))
         t.daemon = True
         t.start()
         threads.append(t)
@@ -86,11 +86,13 @@ def main():
     q = Queue.Queue()
 
     while True:
-        start_workers(get_head_block(), mask_str, no_of_workers, threads)
+        start_workers(get_head_block(), mask_str, no_of_workers, threads, q)
 
         new_block = q.get()
         print "Foreman: got a new block from q"
-        while not test_new_block(new_block, mask_str):
+        isBlockVerified = test_new_block(new_block, mask_str)
+        print 'the new block was verified? ', isBlockVerified
+        while not isBlockVerified:
             print "Found a new solution, restarting EVERYTHING"
             someone_found_solution = True
             for t in threads:
