@@ -93,25 +93,25 @@ def main():
         someone_found_solution = False
         start_workers(get_head_block(), mask_str, no_of_workers, threads, q)
 
-        new_block = q.get()
-        if test_new_block(new_block, mask_str):
-            print "Found a new solution", new_block
-            someone_found_solution = True
-            for t in threads:
-                print "Waiting for ", t
-                t.join()
-            print "Threads stopped, updating blockchain"
-            update_blockchain(new_block)
-            del threads
-            threads = []
-            del q
-            q = Queue.Queue(1)
+        while True:
+            new_block = q.get()
+            if test_new_block(new_block, mask_str):
+                print "Found a new solution", new_block
+                someone_found_solution = True
+                for t in threads:
+                    print "Waiting for ", t
+                    t.join()
+                print "Threads stopped, updating blockchain"
+                update_blockchain(new_block)
+                del threads
+                threads = []
+                del q
+                q = Queue.Queue(1)
 
-            print "Status of blockchain:"
-            pprint(blockchain)
-        else:
-            print "New solution not verified", new_block
-            print "blockchain atm", blockchain
-
+                print "Status of blockchain:"
+                pprint(blockchain)
+                break
+            else:
+                print "New solution not verified"
 
 main()
