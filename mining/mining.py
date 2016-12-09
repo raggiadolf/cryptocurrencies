@@ -11,13 +11,13 @@ someone_found_solution = False
 zero_mask_string = bitarray('0'*256)
 
 blockchain = {
-    "head": "80dacec51a15d70091306ae7175ce02ffeb36a6786c0d0fbef99617f29300000",
-    "80dacec51a15d70091306ae7175ce02ffeb36a6786c0d0fbef99617f29300000": {
+    "head": "def435024526c31cb6442cd81f59eb0e9b027f37e36cabfc09a5b043986440c0",
+    "def435024526c31cb6442cd81f59eb0e9b027f37e36cabfc09a5b043986440c0": {
         "comment": "Satoshi",
-        "nonce": "e928213b91945a5cd539c7057cb5860a",
-        "timestamp": 1481288588,
+        "nonce": "624bdc154a310265c654bb93d982057f",
+        "timestamp": 1481295095,
         "counter": 0,
-        "difficulty": 20,
+        "difficulty": 5,
         "previous_block": None
     }
 }
@@ -33,8 +33,6 @@ def update_blockchain(new_block):
 def test_new_block(new_block, mask_string):
     #new_block["previous_block"] = SHA256.new(json.dumps(blockchain[blockchain["head"]])).hexdigest()
     new_block_hash = SHA256.new(json.dumps(new_block)).hexdigest()
-    print "new_block", new_block
-    print "new_block_hash", new_block_hash
     return test_bits(hash_to_bits(new_block_hash), mask_string)
 
 def hash_to_bits(hash):
@@ -70,8 +68,8 @@ def worker(block, tid, mask_str, q):
         t = SHA256.new(json.dumps(proposed_block)).hexdigest()
         if test_bits(hash_to_bits(t), mask_str):
             q.put(proposed_block)
-            return
-            #print "q after put", q, q.qsize()
+            return # This means a worker only has one chance to submit a solution for this round
+                   # But this also fixes a mild annoyance with the reference returned from the Queue
         i = i + 1
 
 def start_workers(block, mask_str, no_of_workers, threads, q):
@@ -87,7 +85,7 @@ def main():
     mask_str = create_mask(get_head_block()["difficulty"])
 
     threads = []
-    q = Queue.Queue(1)
+    q = Queue.Queue()
 
     while True:
         someone_found_solution = False
@@ -99,14 +97,13 @@ def main():
                 print "Found a new solution", new_block
                 someone_found_solution = True
                 for t in threads:
-                    print "Waiting for ", t
                     t.join()
                 print "Threads stopped, updating blockchain"
                 update_blockchain(new_block)
                 del threads
                 threads = []
                 del q
-                q = Queue.Queue(1)
+                q = Queue.Queue()
 
                 print "Status of blockchain:"
                 pprint(blockchain)
