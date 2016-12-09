@@ -8,7 +8,7 @@ block = {
     "comment": "Satoshi",
     "timestamp": "",
     "counter": 0,
-    "difficulty": 22,
+    "difficulty": 21,
     "nonce": ""
 }
 zero_mask_string = bitarray('0'*256)
