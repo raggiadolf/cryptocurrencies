@@ -22,6 +22,14 @@ bank_key = None
 
 # Returns a json object including the information received from BBB
 def query_bank(s, data, my_id, key):
+	'''Sends a query object to bigbrotherbank
+
+	Args:
+		s: The socket to send data on
+		data: The data we want to send to the bank
+		my_id: Our hashed public key, used as ID towards the bank
+		key: The key used to encrypt the message
+	'''
 	obj = {
 		'id': my_id,
 		'message': data
@@ -31,6 +39,17 @@ def query_bank(s, data, my_id, key):
 	s.sendto(encrypted_msg, (bank_host, bank_port))
 
 def receive_input(participant_count, message, client):
+  '''Prompts the user for info each participants
+
+  Args:
+  	participant_count: the no. of participants in this input/output list
+  	message: What we want the user to input
+  	client: The client the info is relevant to
+
+  Returns:
+  	A data list including info relating to each participant in auth_obj
+  	particular transaction
+  '''
   data = []
   for i in range(participant_count):
     print "Input the {0} for {1} #{2}".format(message, client, i + 1)
@@ -39,6 +58,15 @@ def receive_input(participant_count, message, client):
   return data
 
 def generate_authorization_object_info(clients_info, additional_info):
+  '''Generates a transaction to send to the bank
+
+  Args:
+  	clients_info: A list with the info for each client involved in the transaction
+  	additional_info: 
+
+  Returns:
+  	A list of data to send to the bank relating to a transaction
+  '''
   data = []
   for i in range(clients_info['count']):
   	data.append({
@@ -49,6 +77,15 @@ def generate_authorization_object_info(clients_info, additional_info):
   return data
 
 def get_authorization_info_from_input(initial_message, client_message):
+	'''Prompts the user for info relating to a transaction
+
+	Args:
+		initial_message: What we are prompting the user for
+		client_message: 
+
+	Returns:
+		A clients info object relevant to the client involved in a transaction
+	'''
 	clients_info = {}
 	print "Input the number of {0}".format(initial_message)
 	clients_count = int(raw_input('>> '))
@@ -60,7 +97,12 @@ def get_authorization_info_from_input(initial_message, client_message):
 	return clients_info
 
 def processAuthorize(s, my_id):
-	# get payers / receivers information from input
+	'''Get payers / receivers information from input
+
+	Args:
+		s: The socket to send data on
+		my_id: My current id; SHA256 hash of my public key
+	'''
 	payers_info = get_authorization_info_from_input("participants (payers)", "payer")
 	receivers_info = get_authorization_info_from_input("receivers of the money", "receiver")
 
@@ -89,6 +131,8 @@ def processVerify(s, my_id):
 	query_bank(s, verify_obj, my_id, bank_key)
 
 def processSendId(my_id, s, remotePubKey):
+	'''Send our id to our current chat opponent
+	'''
 	encryptedMessage = encrypt(str(my_id), remotePubKey)
 	s.sendto(encryptedMessage[0], (host, port))
 
@@ -111,6 +155,9 @@ def processGetTransactions(my_id):
 	printTransactions(resp['transactions'])
 
 def sendInitMessageToBank(s):
+	'''Send an init message to the bank, prompting the bank 
+		to send us his public key
+	'''
 	init_obj = {
 		'type': 'init'
 	}
@@ -118,6 +165,8 @@ def sendInitMessageToBank(s):
 	s.sendto(json.dumps(init_obj), (bank_host, bank_port))
 
 def processCreateClient(my_id, my_pub_key, s):
+	'''Send the bank our id and public key
+	'''
 	create_obj = {
 		'type': 'create',
 		'id': my_id,
@@ -127,6 +176,8 @@ def processCreateClient(my_id, my_pub_key, s):
 	query_bank(s, create_obj, my_id, bank_key)
 
 def processCommands():
+	'''Prints a tooltip for the user with the available commands for the chatclient
+	'''
 	print "Available commands:"
 	print "\t/authorize"
 	print "\t\tAuthorize a payment to Big Brother Bank"
@@ -142,6 +193,8 @@ def processCommands():
 	print "\t\tExit this program"
 
 def processCmd(cmd, my_id, s, remotePubKey, my_pub_key):
+	'''Handles the commands available to the user
+	'''
 	if cmd.lower() == 'commands':
 		processCommands()
 	elif cmd.lower() == 'authorize':
@@ -161,14 +214,42 @@ def processCmd(cmd, my_id, s, remotePubKey, my_pub_key):
 		print "Command not recognized."
 
 def string_to_chunks(string, length):
+	'''Splits a particular string into chunks of 'length', the remainder of
+    	the string will be in the last index of the list
+
+    	Args:
+      		string: The string to split
+      		length: Length of each individual chunk
+
+    	Returns:
+      		A list containing the string split into chunks
+  		'''
     return (string[0+i:length+i] for i in range(0, len(string), length))
 
 def encrypt(message, pub_key):
+	'''Encrypts a data for a particular client
+
+  	Args:
+    	data: The data to encrypt
+    	client_id: The client which should receive the data
+
+  	Returns:
+    	An encrypted string representing 'data'
+  	'''
 	messages = list(string_to_chunks(json.dumps(message), 256))
 	messages_encrypted = [base64.b64encode(pub_key.encrypt(m, 32)[0]) for m in messages]
 	return json.dumps(messages_encrypted)
 
 def decrypt(message, key):
+	'''Decrypts data received from a socket using the banks private key
+
+  	Args:
+    	key: Our private key used for decryption
+    	message: The data to decrypt
+
+  	Returns:
+    	A json object with the decrypted data
+  	'''
 	list_decrypted = [key.decrypt(base64.b64decode(chunk)) for chunk in message]
 	return json.loads(''.join(list_decrypted))
 
