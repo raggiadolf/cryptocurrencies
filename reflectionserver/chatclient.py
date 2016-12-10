@@ -182,6 +182,19 @@ def processCreateClient(my_id, my_pub_key, s):
 
 	query_bank(s, create_obj, my_id, bank_key)
 
+def processGetPublicKey(s, my_id):
+	'''Constructs a query object containing the ID used to query for a public key
+		from the bank
+	'''
+	print "Input the ID to query for"
+	ID = raw_input('>> ')
+	query_obj = {
+		'type': 'getpublickey',
+		'id': ID
+	}
+
+	query_bank(s, query_obj, my_id, bank_key)
+
 def processCommands():
 	'''Prints a tooltip for the user with the available commands for the chatclient
 	'''
@@ -189,6 +202,8 @@ def processCommands():
 	print "Available commands:"
 	print "\t/connect"
 	print "\t\tConnects to BBB"
+	print "\t/getpublickey"
+	print "\t\tGet a public key for a particular ID from BBB"
 	print "\t/authorize"
 	print "\t\tAuthorize a payment to Big Brother Bank"
 	print "\t/verify"
@@ -203,6 +218,8 @@ def processCmd(cmd, my_id, s, remotePubKey, my_pub_key):
 	'''
 	if cmd.lower() == 'commands':
 		processCommands()
+	elif cmd.lower() == 'getpublickey':
+		processGetPublicKey(s, my_id)
 	elif cmd.lower() == 'authorize':
 		processAuthorize(s, my_id)
 	elif cmd.lower() == 'verify':
@@ -275,7 +292,7 @@ def handleBankMsg(key, my_id, data, s):
 	msg_type = resp['type']
 	if msg_type == 'authorize':
 		if resp['success']:
-			print "Payment authorized\n>> "
+			print "Payment authorized\n>>"
 			print "Transaction:", resp['transaction_id']
 		else:
 			print "Payment not authorized\n>> "
@@ -296,6 +313,12 @@ def handleBankMsg(key, my_id, data, s):
 			global bank_key
 			bank_key = RSA.importKey(resp['key'])
 			processCreateClient(my_id, key.publickey(), s)
+	elif msg_type == 'getpublickey':
+		if resp['success']:
+			print "Key received: {0}\n>>".format(resp['key'])
+		else:
+			print "Did not receive a key from BBB with that ID\n>>"
+
 	else:
 		print "Unkown type received from BBB", resp
 

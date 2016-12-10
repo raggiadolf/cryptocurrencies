@@ -460,6 +460,19 @@ def encrypt(data, client_id):
   messages_encrypted = [base64.b64encode(client_key.encrypt(m, 32)[0]) for m in messages]
   return json.dumps(messages_encrypted)
 
+def getpublickey(data):
+  client_info = getClientInfo(data['id'])
+
+  if not client_info:
+    return {
+      "success": False
+    }
+
+  return {
+    "success": True,
+    "key": client_info['key']
+  }
+
 def recv(s, bank_key):
   '''Receives data over a socket and handles it appropriately depending on
     the data received
@@ -498,6 +511,9 @@ def recv(s, bank_key):
     elif data['type'] == 'create':
       response = createClient(data)
       response['type'] = 'create'
+    elif data['type'] == 'getpublickey':
+      response = getpublickey(data)
+      response['type'] = 'getpublickey'
     else:
       response = getAllTransactions()
 
