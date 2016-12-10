@@ -4,6 +4,11 @@ from bitarray import bitarray
 import json
 import sys
 
+'''
+  Simply used to generate the genesis block in a blockchain
+  with a valid SHA256 hash
+'''
+
 difficulty = int(sys.argv[1])
 
 block = {
