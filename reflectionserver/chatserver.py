@@ -8,6 +8,13 @@ host = ''
 clients = []
 
 def reflect(conn, clients):
+	'''Receives a message on one socket and reflects the message to the other socket
+		kept in clients[]
+
+	Args:
+		conn: The connection used to reflect messages
+		clients: A list of clients currently being reflected between (only two)
+	'''
 	msg = conn.recvfrom(6144)
 	data = msg[0]
 	addr = msg[1]
@@ -20,6 +27,13 @@ def reflect(conn, clients):
 	conn.sendto(data, (recipient[0]['host'], recipient[0]['port']))
 
 def get_init_msg(conn, clients):
+	'''Establishes a connection to a client and stores his contact info in clients[]
+		This function is called twice before reflection starts
+
+	Args:
+		conn: The connection used to reflect messages
+		clients: A list of clients currently being reflected between (only two)
+	'''
 	msg = conn.recvfrom(6144)
 	data = msg[0]
 	addr = msg[1]
@@ -41,6 +55,12 @@ def get_init_msg(conn, clients):
 		return
 
 def sendInitMessage(conn, clients):
+	'''Initializes connection to the two clients whose chat is to be reflected
+
+	Args:
+		conn: The connection used to reflect messages
+		clients: A list of clients currently being reflected between (only two)
+	'''
 	get_init_msg(conn, clients)
 
 	get_init_msg(conn, clients)
