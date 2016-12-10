@@ -19,6 +19,7 @@ bank_host = sys.argv[3]
 bank_port = int(sys.argv[4])
 
 bank_key = None
+connected_to_bank = False
 
 # Returns a json object including the information received from BBB
 def query_bank(s, data, my_id, key):
@@ -34,6 +35,12 @@ def query_bank(s, data, my_id, key):
 		'id': my_id,
 		'message': data
 	}
+
+	global connected_to_bank
+	if not connected_to_bank:
+		print "C'mon man, what about the kittens?"
+		print "Please use /connect and then reissue your command."
+		return
 
 	encrypted_msg = encrypt(obj, bank_key)
 	s.sendto(encrypted_msg, (bank_host, bank_port))
@@ -178,17 +185,16 @@ def processCreateClient(my_id, my_pub_key, s):
 def processCommands():
 	'''Prints a tooltip for the user with the available commands for the chatclient
 	'''
+	print "Please use /connect to connect to the bank before issuing any commands to the bank, otherwise bad things will happen to kittens."
 	print "Available commands:"
+	print "\t/connect"
+	print "\t\tConnects to BBB"
 	print "\t/authorize"
 	print "\t\tAuthorize a payment to Big Brother Bank"
 	print "\t/verify"
 	print "\t\tVerify a payment from Big Brother Bank"
 	print "\t/sendid"
 	print "\t\tSend your ID to your chat recipient"
-	print "\t/gettransactions"
-	print "\t\tGet your transactions from Big Brother Bank"
-	print "\tcreateclient"
-	print "\t\tCreates a client with BBB using your generated ID"
 	print "\t/quit"
 	print "\t\tExit this program"
 
@@ -205,7 +211,7 @@ def processCmd(cmd, my_id, s, remotePubKey, my_pub_key):
 		processSendId(my_id, s, remotePubKey)
 	elif cmd.lower() == 'gettransactions':
 		processGetTransactions(my_id)
-	elif cmd.lower() == 'createclient':
+	elif cmd.lower() == 'connect':
 		sendInitMessageToBank(s)
 	elif cmd.lower() == 'exit' or cmd.lower() == 'quit' or cmd.lower() == 'q':
 		print "Exiting..."
@@ -224,7 +230,7 @@ def string_to_chunks(string, length):
     	Returns:
       		A list containing the string split into chunks
   		'''
-    return (string[0+i:length+i] for i in range(0, len(string), length))
+	return (string[0+i:length+i] for i in range(0, len(string), length))
 
 def encrypt(message, pub_key):
 	'''Encrypts a data for a particular client
@@ -269,21 +275,23 @@ def handleBankMsg(key, my_id, data, s):
 	msg_type = resp['type']
 	if msg_type == 'authorize':
 		if resp['success']:
-			print "Payment authorized"
+			print "Payment authorized\n>> "
 			print "Transaction:", resp['transaction_id']
 		else:
-			print "Payment not authorized"
+			print "Payment not authorized\n>> "
 	elif msg_type == 'verify':
 		if resp['success']:
-			print "Transaction successfully verified by BBB"
+			print "Transaction successfully verified by BBB\n>> "
 		else:
-			print "Transaction not verified by BBB"
+			print "Transaction not verified by BBB\n>> "
 	elif msg_type == 'create':
 		if resp['success']:
-			print "Account with BBB successfully created."
+			print "Account with BBB successfully created.\n>> "
 		else:
-			print "Could not create account with BBB."
+			print "Connected to BBB.\n>> "
 	elif msg_type == 'init':
+		global connected_to_bank
+		connected_to_bank = True
 		if resp['success']:
 			global bank_key
 			bank_key = RSA.importKey(resp['key'])
@@ -341,7 +349,6 @@ def generateKeySigObject(key):
 		'key': localPubKey.exportKey(),
 		'signature': signature
 	}
-	print "key sig obj", keysig_object
 	return keysig_object
 
 def main():
@@ -360,6 +367,9 @@ def main():
 		localKey = RSA.importKey(f.read(),  passphrase=passphrase)
 		f.close()
 		print "Private key imported from 'key.pem'"
+	else:
+		print "Please input either 1 or 2, exiting."
+		sys.exit()
 	my_id = generateId(localKey.publickey())
 
 	s.sendto(json.dumps(generateKeySigObject(localKey)), (host, port))
