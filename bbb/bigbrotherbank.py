@@ -12,10 +12,14 @@ rng = Random.new().read
 from pprint import pprint
 from threading import Thread
 
-cert_text = "This is a text to sign and verify"
 bank_public_key = None
 
 def generateKey():
+  '''Generates a 2048bit RSA key. rng parameter to RSA.generate() is ignored.
+
+  Returns:
+    An RSA key object.
+  '''
   return RSA.generate(2048, rng)
 
 def verify(verify_obj):
@@ -32,9 +36,25 @@ def verify(verify_obj):
   }
 
 def generateId():
+  '''Generates a unique id using the uuid python module.
+
+  Returns:
+    A string representation of a uuid
+  '''
   return str(uuid.uuid4())
 
 def generateTransactionId(transactions):
+  '''Generates a unique ID for a transaction.
+
+  We look up a generated ID in our transactions to see if it's already in use,
+  if not, we return it, otherwise we generate a new ID.
+
+  Args:
+    transactions: The transactions currently in use in the blockchain
+
+  Returns:
+    A unique uuid
+  '''
   transaction_id = generateId()
   if validateTransactionId(transactions, transaction_id):
     return transaction_id
@@ -42,31 +62,76 @@ def generateTransactionId(transactions):
     generateTransactionId(transactions)
 
 def validateTransactionId(transactions, transaction_id):
+  '''Checks if a given transaction ID is already in use
+
+  Args:
+    transactions: The transactions currently in use in the blockchain
+    transaction_id: The newly generated transaction ID to validate
+
+  Returns:
+    True if a transaction ID is currently not being used, otherwise False.
+  '''
   if transactions.get(transaction_id):
     return False
   else:
     return True
 
 def find_last_client_output(transactions, client_id):
+  '''Looks through the blockchain for the last time a particular 
+    client appeared in the output
+
+    Args:
+      transactions: The transactions currently in use in the blockchain
+      client_id: The client we want to find the last output transaction for
+
+    Returns:
+      A tuple containing both the transaction and the particular output the client 
+      was involved in, we return the output as well just so that we don't need to
+      look for it again when we want to query the amount.
+
+      If no transaction is found we return None
+      Should perhaps be (None, None) for compatability?
+  '''
   t = transactions[transactions['head']]
   while t:
-    c = filter(lambda client:client['id'] == client_id, t['output'])
+    c = filter(lambda client:client['id'] == client_id, t['output']) # Returns a list of output lines if client_id is present
     if c:
-      return t, c[0]
-    prev_block = t['previous_block']
-    if not prev_block:
+      return t, c[0] # We should only ever receive a single output line, so we simply return the first one found
+    prev_block = t['previous_block'] # Traverse the blockchain
+    if not prev_block: # The genesis block returns None, means we're at the start of the block
       break
     t = transactions[prev_block]
 
   return None
 
 def check_transaction_in_out_amount(inputs, outputs):
+  '''Sums up the inputs and outputs of a particular transaction 
+    and checks if the sums match
+
+  Args:
+    inputs: The list of inputs to compare against the output list
+    outputs: The list of outputs to compare against the input list
+
+  Returns:
+    True if the sums match, otherwise False
+  '''
   in_sum = sum(i['amount'] for i in inputs)
   out_sum = sum(o['amount'] for o in outputs)
 
   return in_sum == out_sum
 
 def check_if_clients_are_valid(bank_clients, inputs, outputs):
+  '''Checks if all clients involved in a particular transactions have already
+    got a client id with the bank.
+
+    Args:
+      bank_clients: A list of all clients currently registered with the bank
+      inputs: A list of inputs in a particular transaction
+      ouptuts: A list of outputs in a particular transaction
+
+    Returns:
+      True if all involved clients are registered with the bank, otherwise False.
+  '''
   for i in inputs:
     c = filter(lambda client: client['id'] == i['id'], bank_clients)
     if not c:
@@ -80,6 +145,16 @@ def check_if_clients_are_valid(bank_clients, inputs, outputs):
   return True
 
 def check_input_balance(transactions, inputs):
+  '''Checks whether all the input participants in a particular transaction have the
+    neccessary funds available for that particular transaction
+
+  Args:
+    transactions: The transactions currently in use in the blockchain
+    inputs: All inputs in a particular transaction
+
+  Returns:
+    True if all participants of the transaction can afford it, otherwise False.
+  '''
   for i in inputs:
     if get_client_balance(transactions, i['id']) < i['amount']:
       return False
@@ -87,12 +162,32 @@ def check_input_balance(transactions, inputs):
   return True
 
 def get_client_balance(transactions, client_id):
+  '''Gets the balance (the last output transaction) of a particular client
+
+  Args:
+    transactions: The transactions currently in use in the blockchain
+    client_id: The ID of the client we want to look up the balance for
+
+  Returns:
+    The amount for the clients last output transaction; the clients current balance
+  '''
   last_transaction, last_output = find_last_client_output(transactions, client_id) or (None, None)
   if last_output:
     return last_output['amount']
   return 0
 
 def verify_client_signature(bank_clients, verify_obj, client_id, signature):
+  '''Verify that a client signed a particular transaction
+
+  Args:
+    bank_clients: A list of all clients currently registered with the bank
+    verify_obj: The transaction to verify, stripped of everything but the input+output lists
+    client_id: The client whos signature we want to verify, used to look up the public key
+    signature: The signature to verify
+
+  Returns:
+    True if the signature is successfully verified, otherwise False.
+  '''
   c = filter(lambda client: client['id'] == client_id, bank_clients)
   if not c:
     # Could not find a reference to this client, something went wrong!
@@ -101,6 +196,19 @@ def verify_client_signature(bank_clients, verify_obj, client_id, signature):
   return client_key.verify(json.dumps(auth_obj), signature)
 
 def authorize(auth_obj):
+  '''Authorizes a payment and attaches it to the blockchain
+    Performs all the neccessary checks to make sure that the transaction is legit:
+      Checks that the total input/output amounts match
+      Checks if all the clients involved in the transaction are registered with the bank
+      Checks if all the clients have the neccessary funds needed for the transaction
+
+  Args:
+    auth_obj: The transaction to authorize
+
+  Returns:
+    An object including the new transaction's ID if the transaction is successful,
+    otherwise an object indicating failure.
+  '''
   config = openConfigFile()
   clients = config['clients']
   transactions = config['transactions']
@@ -126,7 +234,7 @@ def authorize(auth_obj):
       'success': False
     }
 
-  verify_obj = {
+  verify_obj = { # Pick out the information needed for the signatures
     'input': [{ 'id': i['id'], 'amount': i['amount'] } for i in auth_obj['input']],
     'output': [{ 'id': i['id'], 'amount': i['amount'] } for i in auth_obj['output']]
   }
@@ -136,6 +244,8 @@ def authorize(auth_obj):
   transaction_output = []
 
   for i in auth_obj['input']:
+    # Since we're looping through the inputs/outputs, we piggyback the verifications
+    # on these loops
     if not verify_client_signature(clients, verify_obj, i['id'], i['signature']):
       # This client's signature does not check out with this transaction
       print "Some clients signature does not match"
@@ -237,6 +347,17 @@ def createTransactionObject(auth_obj):
   }
 
 def createClient(data):
+  '''Adds a new client to the banks config file
+
+  Args:
+    data: the ID (hashed publick key) and the public key for a new client
+
+  Returns: An object indicating success if the client was added, 
+    otherwise indicating failure.
+
+    A client is not added to the config if his hashed public key is already
+    present in the config.
+  '''
   config = openConfigFile()
   clients = config['clients']
 
@@ -263,6 +384,14 @@ def createClient(data):
   }
 
 def init(bank_key):
+  '''Used when initializing a clients connection with the bank
+
+  Args:
+    bank_key: The bank's private key
+
+  Returns:
+    An object containing the banks public key
+  '''
   return {
     'success': True,
     'key': bank_key.publickey().exportKey(),
@@ -270,6 +399,14 @@ def init(bank_key):
   }
 
 def getClientInfo(client_id):
+  '''Looks up a particular clients info from the config file
+
+  Args: 
+    client_id: The ID for the client we want the info for
+
+  Returns:
+    The client info for the particular client (ID and public key)
+  '''
   clients = openConfigFile()['clients']
 
   client_info = filter(lambda client: client['id'] == client_id, clients)
@@ -281,13 +418,41 @@ def getClientInfo(client_id):
   return client_info[0]
 
 def string_to_chunks(string, length):
-    return (string[0+i:length+i] for i in range(0, len(string), length))
+  '''Splits a particular string into chunks of 'length', the remainder of
+    the string will be in the last index of the list
+
+    Args:
+      string: The string to split
+      length: Length of each individual chunk
+
+    Returns:
+      A list containing the string split into chunks
+  '''
+  return (string[0+i:length+i] for i in range(0, len(string), length))
 
 def decrypt(bank_key, data):
+  '''Decrypts data received from a socket using the banks private key
+
+  Args:
+    bank_key: The banks private key
+    data: The data to decrypt
+
+  Returns:
+    A json object with the decrypted data
+  '''
   list_decrypted = [bank_key.decrypt(base64.b64decode(chunk)) for chunk in json.loads(data)]
   return json.loads(''.join(list_decrypted))
 
 def encrypt(data, client_id):
+  '''Encrypts a data for a particular client
+
+  Args:
+    data: The data to encrypt
+    client_id: The client which should receive the data
+
+  Returns:
+    An encrypted string representing 'data'
+  '''
   client_info = getClientInfo(client_id)
   client_key = RSA.importKey(client_info['key'])
 
@@ -295,14 +460,16 @@ def encrypt(data, client_id):
   messages_encrypted = [base64.b64encode(client_key.encrypt(m, 32)[0]) for m in messages]
   return json.dumps(messages_encrypted)
 
-def is_json(json_obj):
-  try:
-    json.loads(json_obj)
-  except ValueError, e:
-    return False
-  return True
-
 def recv(s, bank_key):
+  '''Receives data over a socket and handles it appropriately depending on
+    the data received
+
+  Args:
+    s: The socket to listen for data on
+    bank_key: The banks private key
+
+  Stays in an infinite loop receiving data and sending back a response
+  '''
   while True:
     d = s.recvfrom(6144)
     encrypted_data = d[0]
@@ -338,6 +505,11 @@ def recv(s, bank_key):
     s.sendto(encrypted_response, addr)
 
 def openConfigFile():
+  '''Opens the current config file for the banks
+
+  Returns:
+    A JSON object representing the current config file
+  '''
   with open('config.json') as data_file:
     return json.load(data_file, strict=False)
 
@@ -374,6 +546,8 @@ def getClientTransactions(isPayer):
     printClientTransactions(receiver_id, False)
 
 def commandLine():
+  '''Processes command lines from stdin
+  '''
   while True:
     cmd = raw_input('>> ')
     if cmd.lower() == 'getalltransactions':
