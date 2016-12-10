@@ -195,6 +195,16 @@ def processGetPublicKey(s, my_id):
 
 	query_bank(s, query_obj, my_id, bank_key)
 
+def processHead(s, my_id):
+	'''Constructs a query object asking the bank for the hash pointer to the current
+		head of the blockchain
+	'''
+	query_obj = {
+		'type': 'gethead'
+	}
+
+	query_bank(s, query_obj, my_id, bank_key)
+
 def processCommands():
 	'''Prints a tooltip for the user with the available commands for the chatclient
 	'''
@@ -204,6 +214,8 @@ def processCommands():
 	print "\t\tConnects to BBB"
 	print "\t/getpublickey"
 	print "\t\tGet a public key for a particular ID from BBB"
+	print "\tgethead"
+	print "\t\tGet the hash pointer for the current head of the blockchain"
 	print "\t/authorize"
 	print "\t\tAuthorize a payment to Big Brother Bank"
 	print "\t/verify"
@@ -220,6 +232,8 @@ def processCmd(cmd, my_id, s, remotePubKey, my_pub_key):
 		processCommands()
 	elif cmd.lower() == 'getpublickey':
 		processGetPublicKey(s, my_id)
+	elif cmd.lower() == 'gethead':
+		processHead(s, my_id)
 	elif cmd.lower() == 'authorize':
 		processAuthorize(s, my_id)
 	elif cmd.lower() == 'verify':
@@ -318,6 +332,11 @@ def handleBankMsg(key, my_id, data, s):
 			print "Key received: {0}\n>>".format(resp['key'])
 		else:
 			print "Did not receive a key from BBB with that ID\n>>"
+	elif msg_type == 'gethead':
+		if resp['success']:
+			print "Current head of the blockchain: {0}\n>>".format(resp['head'])
+		else:
+			print "Bank could not supply us with the current head of the chain"
 
 	else:
 		print "Unkown type received from BBB", resp

@@ -473,6 +473,18 @@ def getpublickey(data):
     "key": client_info['key']
   }
 
+def gethead(data):
+  head = openConfigFile()['transactions']['head']
+  if head:
+    return {
+      'success': True,
+      'head': head
+    }
+  
+  return {
+    'success': False
+  }
+
 def recv(s, bank_key):
   '''Receives data over a socket and handles it appropriately depending on
     the data received
@@ -514,6 +526,9 @@ def recv(s, bank_key):
     elif data['type'] == 'getpublickey':
       response = getpublickey(data)
       response['type'] = 'getpublickey'
+    elif data['type'] == 'gethead':
+      response = gethead(data)
+      response['type'] = 'gethead'
     else:
       response = getAllTransactions()
 
