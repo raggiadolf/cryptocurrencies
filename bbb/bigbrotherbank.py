@@ -461,6 +461,8 @@ def encrypt(data, client_id):
   return json.dumps(messages_encrypted)
 
 def getpublickey(data):
+  '''Returns the public key associated with a given ID
+  '''
   client_info = getClientInfo(data['id'])
 
   if not client_info:
@@ -474,6 +476,8 @@ def getpublickey(data):
   }
 
 def gethead(data):
+  '''Returns current the head of the blockchain
+  '''
   head = openConfigFile()['transactions']['head']
   if head:
     return {
@@ -486,6 +490,11 @@ def gethead(data):
   }
 
 def getblock(data):
+  '''Returns a block from the blockchain to the client
+
+  Args:
+    data: an object containing the id we need to look up
+  '''
   transactions = openConfigFile()['transactions']
   transaction_id = data['id']
 
