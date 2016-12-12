@@ -4,6 +4,7 @@ import sys
 import json
 import base64
 import getpass
+import time
 
 from Crypto.PublicKey import RSA
 from Crypto import Random
@@ -217,6 +218,37 @@ def processGetBlock(s, my_id):
 
 	query_bank(s, query_obj, my_id, bank_key)
 
+def processPutBlock(s, my_id):
+	'''Constructs a new block to send to the bank for verification
+	'''
+
+	payers_info = get_authorization_info_from_input("participants (payers)", "payer")
+	receivers_info = get_authorization_info_from_input("receivers of the money", "receiver")
+
+	# This next part, setting the previous_block and counter, could be hidden from the user
+	# but we keep it explicit for now so that we can manifacture error cases
+
+	print "Input the current head of the blockchain for the previous_block field in the new block"
+	previous_block = raw_input('>> ')
+	print "Input the counter for the new block"
+	counter = int(raw_input('>> '))
+
+    block = {
+    	'input': generate_authorization_object_info(payers_info, receivers_info),
+    	'output':   generate_authorization_object_info(receivers_info, payers_info),
+    	'previous_block': previous_block,
+    	'comment': my_id,
+    	'counter': counter,
+    	'timestamp': int(time.time())
+    }
+
+	query_obj = {
+		'type': 'putblock',
+		'block': block
+	}
+
+	query_bank(s, query_obj, my_id, bank_key)
+
 def processCommands():
 	'''Prints a tooltip for the user with the available commands for the chatclient
 	'''
@@ -230,6 +262,8 @@ def processCommands():
 	print "\t\tGet the hash pointer for the current head of the blockchain"
 	print "\t/getblock"
 	print "\t\tGet a block with a particular hash pointer from BBB"
+	print "\t/putblock"
+	print "\t\tAttempt to put a block onto the blockchain at BBB"
 	print "\t/authorize"
 	print "\t\tAuthorize a payment to Big Brother Bank"
 	print "\t/verify"
@@ -244,6 +278,8 @@ def processCmd(cmd, my_id, s, remotePubKey, my_pub_key):
 	'''
 	if cmd.lower() == 'commands':
 		processCommands()
+	elif cmd.lower() == 'putblock':
+		processPutBlock(s, my_id)
 	elif cmd.lower() == 'getblock':
 		processGetBlock(s, my_id)
 	elif cmd.lower() == 'getpublickey':
@@ -358,6 +394,11 @@ def handleBankMsg(key, my_id, data, s):
 			print "Requested transaction: {0}\n>>".format(resp['transaction'])
 		else:
 			print "Bank did not find a transaction with that hash pointer"
+	elif msg_type == 'putblock':
+		if resp['success']:
+			print "Successfully placed the block on the blockchain, hash pointer: {0}\n>>".format(resp['hash'])
+		else:
+			print "Could not place the block on the blockchain"
 
 	else:
 		print "Unkown type received from BBB", resp

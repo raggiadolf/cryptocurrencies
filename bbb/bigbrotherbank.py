@@ -500,6 +500,57 @@ def getblock(data):
     'success': False
   }
 
+def test_new_block(transactions, block):
+  '''Performs the needed tests to validate a block before it's added to the blockchain
+
+  Args:
+    transactions: The current state of the blockchain
+    block: The block to test
+
+  Returns:
+    True if the new block is valid and can be added to the blockchain, otherwise False.
+  '''
+  return block["previous_block"] == transactions["head"] and block["counter"] == (transactions[transactions["head"]]["counter"] + 1)
+
+def update_blockchain(transactions, block):
+  '''Inserts a new block at the head of the block chain and points the "head"
+    pointer to that new block
+
+  Args:
+    block: The block to insert at the head of the blockchain
+
+  Returns:
+    The SHA256 hash hex representation of the block which was added to the block chain
+  '''
+  new_block_hash = SHA256.new(json.dumps(block)).hexdigest()
+  transactions["head"] = new_block_hash
+  transactions[new_block_hash] = block
+
+  return new_block_hash
+
+def putblock(data):
+  '''Tries to add a received block to the blockchain
+
+  Args:
+    data: A JSON object containing the proposed block
+
+  Returns:
+    An object indicating success and containing a hash pointer to the new block
+      if insertion was successful, an object indicating failure otherwise.
+  '''
+  transactions = openConfigFile()['transactions']
+
+  if test_new_block(transactions, data['block']):
+    block_hash = update_blockchain(transactions, block)
+    return {
+      'success': True,
+      'hash': block_hash
+    }
+
+  return {
+    'success': False
+  }
+
 def recv(s, bank_key):
   '''Receives data over a socket and handles it appropriately depending on
     the data received
@@ -547,6 +598,9 @@ def recv(s, bank_key):
     elif data['type'] == 'getblock':
       response = getblock(data)
       response['type'] = 'getblock'
+    elif data['type'] == 'putblock':
+      response = putblock(data)
+      response['type'] = 'putblock'
     else:
       response = getAllTransactions()
 
