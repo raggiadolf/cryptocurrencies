@@ -485,6 +485,21 @@ def gethead(data):
     'success': False
   }
 
+def getblock(data):
+  transactions = openConfigFile()['transactions']
+  transaction_id = data['id']
+
+  if transactions.get(transaction_id):
+    t = transactions[transaction_id]
+    return {
+      'success': True,
+      'transaction': t
+    }
+
+  return {
+    'success': False
+  }
+
 def recv(s, bank_key):
   '''Receives data over a socket and handles it appropriately depending on
     the data received
@@ -529,6 +544,9 @@ def recv(s, bank_key):
     elif data['type'] == 'gethead':
       response = gethead(data)
       response['type'] = 'gethead'
+    elif data['type'] == 'getblock':
+      response = getblock(data)
+      response['type'] = 'getblock'
     else:
       response = getAllTransactions()
 
