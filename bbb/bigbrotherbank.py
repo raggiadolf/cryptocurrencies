@@ -193,7 +193,7 @@ def verify_client_signature(bank_clients, verify_obj, client_id, signature):
     # Could not find a reference to this client, something went wrong!
     return False
   client_key = RSA.importKey(c[0]['key'])
-  return client_key.verify(json.dumps(auth_obj), signature)
+  return client_key.verify(json.dumps(verify_obj), signature)
 
 def authorize(auth_obj):
   '''Authorizes a payment and attaches it to the blockchain
