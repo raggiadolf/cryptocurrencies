@@ -22,4 +22,4 @@ Once you have two chatclients connected to the chatserver they can send encrypte
 - [x] Signatures between client and bank
 - [x] Signatures between multiple clients
 - [x] Don't allow clients to start transactions before creating a client
-- [ ] Make bank reject authorizations which include negative values
+- [x] Make bank reject authorizations which include negative values

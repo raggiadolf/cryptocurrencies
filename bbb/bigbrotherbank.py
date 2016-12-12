@@ -195,6 +195,9 @@ def verify_client_signature(bank_clients, verify_obj, client_id, signature):
   client_key = RSA.importKey(c[0]['key'])
   return client_key.verify(json.dumps(verify_obj), signature)
 
+def check_transaction_for_negative_amounts(inputs, outputs):
+  return all(i >= 0 for i in inputs) and all(o >= 0 for o in outputs)
+
 def authorize(auth_obj):
   '''Authorizes a payment and attaches it to the blockchain
     Performs all the neccessary checks to make sure that the transaction is legit:
@@ -212,6 +215,13 @@ def authorize(auth_obj):
   config = openConfigFile()
   clients = config['clients']
   transactions = config['transactions']
+
+  if not check_transaction_for_negative_amounts(auth_obj['input'], auth_obj['output']):
+    # Some entry contains a negative value
+    print "Transaction contains a negative input/output entry"
+    return {
+      'success': False
+    }
 
   if not check_transaction_in_out_amount(auth_obj['input'], auth_obj['output']):
     # In/Out amounts not equal, return error msg?
