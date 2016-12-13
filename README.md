@@ -20,6 +20,5 @@ Once you have two chatclients connected to the chatserver they can send encrypte
 - [ ] Create an audit method within the bank
 - [ ] Create a client side audit which requests the blockchain from the bank and verifies it
 - [x] Signatures between client and bank
-- [x] Signatures between multiple clients
 - [x] Don't allow clients to start transactions before creating a client
 - [x] Make bank reject authorizations which include negative values
