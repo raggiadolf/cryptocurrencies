@@ -198,6 +198,46 @@ def verify_client_signature(bank_clients, verify_obj, client_id, signature):
 def check_transaction_for_negative_amounts(inputs, outputs):
   return all(i >= 0 for i in inputs) and all(o >= 0 for o in outputs)
 
+def get_verification_object_from_transaction(transactions, hashpointer):
+  '''Backwards computes a verification object from a particular transaction
+    Allows us to get a transaction from the blockchain and verify each signature
+    involved in the original transaction
+
+  Args:
+    transactions: The transactions currently in the blockchain
+    hashpointer: A hash pointer to the transaction to compute the verification
+      object for
+  '''
+  if not transactions.get(hashpointer): # This has pointer is not currently present in the blockchain
+    return
+
+  verification_object = {
+    'input': [],
+    'output': []
+  }
+
+  t = transactions[hashpointer]
+
+  for i in t['input']:
+    o = filter(lambda output: output['id'] == i['id'], t['output'])
+    if not o: # Not a matching output for this input, something's wrong with the transaction
+      return
+    result = i['amount'] - o[0]['amount']
+    if result < 0: # This ID was paying
+      verification_object['input'].append({
+          'id': i['id'],
+          'amount': abs(result),
+          'signature': i['signature']
+        })
+    else: # This id was a payee
+      verification_object['output'].append({
+          'id': i['id'],
+          'amount': abs(result),
+          'signature': i['signature']
+        })
+
+  return verification_object
+
 def authorize(auth_obj):
   '''Authorizes a payment and attaches it to the blockchain
     Performs all the neccessary checks to make sure that the transaction is legit:
