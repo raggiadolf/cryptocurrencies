@@ -70,7 +70,7 @@ def generate_authorization_object_info(clients_info, additional_info):
 
   Args:
   	clients_info: A list with the info for each client involved in the transaction
-  	additional_info: 
+  	additional_info:
 
   Returns:
   	A list of data to send to the bank relating to a transaction
@@ -89,7 +89,7 @@ def get_authorization_info_from_input(initial_message, client_message):
 
 	Args:
 		initial_message: What we are prompting the user for
-		client_message: 
+		client_message:
 
 	Returns:
 		A clients info object relevant to the client involved in a transaction
@@ -104,7 +104,7 @@ def get_authorization_info_from_input(initial_message, client_message):
 	clients_info['signatures'] = receive_input(clients_count, "signature", client_message)
 	return clients_info
 
-def processAuthorize(s, my_id):
+def process_authorize(s, my_id):
 	'''Get payers / receivers information from input
 
 	Args:
@@ -121,7 +121,7 @@ def processAuthorize(s, my_id):
 	}
 	query_bank(s, auth_obj, my_id, bank_key)
 
-def processVerify(s, my_id):
+def process_verify(s, my_id):
 	print "Input the amount to verify"
 	amount = int(raw_input('>> '))
 	print "Input the payer ID"
@@ -138,7 +138,7 @@ def processVerify(s, my_id):
 
 	query_bank(s, verify_obj, my_id, bank_key)
 
-def processSendId(my_id, s, remotePubKey):
+def process_send_id(my_id, s, remotePubKey):
 	'''Send our id to our current chat opponent
 	'''
 	encryptedMessage = encrypt(str(my_id), remotePubKey)
@@ -150,7 +150,7 @@ def printTransactions(transactions):
 		for kk, vv in t['transactions'][k].iteritems():
 			print "\t" + kk + ": " + str(vv)
 
-def processGetTransactions(my_id):
+def process_get_transactions(my_id):
 	trans_obj = {
 		'type': 'gettransactions',
 		'payer_id': my_id
@@ -162,8 +162,8 @@ def processGetTransactions(my_id):
 		return
 	printTransactions(resp['transactions'])
 
-def sendInitMessageToBank(s):
-	'''Send an init message to the bank, prompting the bank 
+def send_init_message_to_bank(s):
+	'''Send an init message to the bank, prompting the bank
 		to send us his public key
 	'''
 	init_obj = {
@@ -183,7 +183,7 @@ def processCreateClient(my_id, my_pub_key, s):
 
 	query_bank(s, create_obj, my_id, bank_key)
 
-def processGetPublicKey(s, my_id):
+def process_get_public_key(s, my_id):
 	'''Constructs a query object containing the ID used to query for a public key
 		from the bank
 	'''
@@ -196,7 +196,7 @@ def processGetPublicKey(s, my_id):
 
 	query_bank(s, query_obj, my_id, bank_key)
 
-def processHead(s, my_id):
+def process_head(s, my_id):
 	'''Constructs a query object asking the bank for the hash pointer to the current
 		head of the blockchain
 	'''
@@ -206,7 +206,7 @@ def processHead(s, my_id):
 
 	query_bank(s, query_obj, my_id, bank_key)
 
-def processGetBlock(s, my_id):
+def process_get_block(s, my_id):
 	'''Requests a block from the bank with a particular id
 	'''
 	print "Input the hash pointer for the block to query for"
@@ -218,7 +218,7 @@ def processGetBlock(s, my_id):
 
 	query_bank(s, query_obj, my_id, bank_key)
 
-def processPutBlock(s, my_id):
+def process_put_block(s, my_id):
 	'''Constructs a new block to send to the bank for verification
 	'''
 
@@ -233,14 +233,14 @@ def processPutBlock(s, my_id):
 	print "Input the counter for the new block"
 	counter = int(raw_input('>> '))
 
-    block = {
-    	'input': generate_authorization_object_info(payers_info, receivers_info),
-    	'output':   generate_authorization_object_info(receivers_info, payers_info),
-    	'previous_block': previous_block,
-    	'comment': my_id,
-    	'counter': counter,
-    	'timestamp': int(time.time())
-    }
+	block = {
+		'input': generate_authorization_object_info(payers_info, receivers_info),
+		'output':   generate_authorization_object_info(receivers_info, payers_info),
+		'previous_block': previous_block,
+		'comment': my_id,
+		'counter': counter,
+		'timestamp': int(time.time())
+	}
 
 	query_obj = {
 		'type': 'putblock',
@@ -249,7 +249,7 @@ def processPutBlock(s, my_id):
 
 	query_bank(s, query_obj, my_id, bank_key)
 
-def processCommands():
+def process_commands():
 	'''Prints a tooltip for the user with the available commands for the chatclient
 	'''
 	print "Please use /connect to connect to the bank before issuing any commands to the bank, otherwise bad things will happen to kittens."
@@ -273,29 +273,29 @@ def processCommands():
 	print "\t/quit"
 	print "\t\tExit this program"
 
-def processCmd(cmd, my_id, s, remotePubKey, my_pub_key):
+def process_cmd(cmd, my_id, s, remotePubKey, my_pub_key):
 	'''Handles the commands available to the user
 	'''
 	if cmd.lower() == 'commands':
-		processCommands()
+		process_commands()
 	elif cmd.lower() == 'putblock':
-		processPutBlock(s, my_id)
+		process_put_block(s, my_id)
 	elif cmd.lower() == 'getblock':
-		processGetBlock(s, my_id)
+		process_get_block(s, my_id)
 	elif cmd.lower() == 'getpublickey':
-		processGetPublicKey(s, my_id)
+		process_get_public_key(s, my_id)
 	elif cmd.lower() == 'gethead':
-		processHead(s, my_id)
+		process_head(s, my_id)
 	elif cmd.lower() == 'authorize':
-		processAuthorize(s, my_id)
+		process_authorize(s, my_id)
 	elif cmd.lower() == 'verify':
-		processVerify(s, my_id)
+		process_verify(s, my_id)
 	elif cmd.lower() == 'sendid':
-		processSendId(my_id, s, remotePubKey)
+		process_send_id(my_id, s, remotePubKey)
 	elif cmd.lower() == 'gettransactions':
-		processGetTransactions(my_id)
+		process_get_transactions(my_id)
 	elif cmd.lower() == 'connect':
-		sendInitMessageToBank(s)
+		send_init_message_to_bank(s)
 	elif cmd.lower() == 'exit' or cmd.lower() == 'quit' or cmd.lower() == 'q':
 		print "Exiting..."
 		sys.exit()
@@ -342,10 +342,10 @@ def decrypt(message, key):
 	list_decrypted = [key.decrypt(base64.b64decode(chunk)) for chunk in message]
 	return json.loads(''.join(list_decrypted))
 
-def verifyKey(rsakey, signature, key):
+def verify_key(rsakey, signature, key):
 	return rsakey.verify(SHA256.new(cert_text).digest(), signature)
 
-def handleBankMsg(key, my_id, data, s):
+def handle_bank_msg(key, my_id, data, s):
 	json_data = json.loads(data)
 
 	if type(json_data) is not list:
@@ -410,7 +410,7 @@ def recv(s, key, my_id):
 		addr = msg[1]
 		if addr != (host, port):
 			# Shitty hack to check whether the message came from the chat server or BBB
-			handleBankMsg(key, my_id, msg[0], s)
+			handle_bank_msg(key, my_id, msg[0], s)
 			continue
 		data = msg[0]
 
@@ -423,7 +423,7 @@ def send(s, remotePubKey, my_id, my_pub_key):
 	while True:
 		message = raw_input('>> ')
 		if message.startswith('/'):
-			processCmd(message[1:], my_id, s, remotePubKey, my_pub_key)
+			process_cmd(message[1:], my_id, s, remotePubKey, my_pub_key)
 			continue
 		msg_obj = {
 			'msg': message
@@ -431,21 +431,21 @@ def send(s, remotePubKey, my_id, my_pub_key):
 		encryptedMessage = encrypt(msg_obj, remotePubKey)
 		s.sendto(encryptedMessage, (host, port))
 
-def getRemotePublicKey(initmessage, key):
+def get_remote_public_key(initmessage, key):
 	remotePubKey = ''
-	if verifyKey(RSA.importKey(initmessage['key']), initmessage['signature'], key):
+	if verify_key(RSA.importKey(initmessage['key']), initmessage['signature'], key):
 		remotePubKey = RSA.importKey(initmessage['key'])
 	else:
 		print 'Key is not verified'
 	return remotePubKey
 
-def generateKey():
+def generate_key():
 	return RSA.generate(2048, rng)
 
-def generateId(key):
+def generate_id(key):
 	return SHA256.new(key.exportKey()).hexdigest()
 
-def generateKeySigObject(key):
+def generate_key_sig_object(key):
 	localPubKey = key.publickey()
 	signature = key.sign(SHA256.new(cert_text).digest(), rng)
 
@@ -462,7 +462,7 @@ def main():
 	option = raw_input('>> ')
 
 	if option == "1":
-		localKey = generateKey()
+		localKey = generate_key()
 		print "New key generated just for this session"
 	elif option == "2":
 		f = open('key.pem', 'r')
@@ -474,12 +474,12 @@ def main():
 	else:
 		print "Please input either 1 or 2, exiting."
 		sys.exit()
-	my_id = generateId(localKey.publickey())
+	my_id = generate_id(localKey.publickey())
 
-	s.sendto(json.dumps(generateKeySigObject(localKey)), (host, port))
+	s.sendto(json.dumps(generate_key_sig_object(localKey)), (host, port))
 	initmessage = json.loads(s.recvfrom(6144)[0])
 
-	remotePubKey = getRemotePublicKey(initmessage, localKey)
+	remotePubKey = get_remote_public_key(initmessage, localKey)
 
 	print "Type /commands for a list of available commands, or start typing away to chat."
 

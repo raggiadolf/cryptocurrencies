@@ -54,7 +54,7 @@ def get_init_msg(conn, clients):
 		print "Not adding new client"
 		return
 
-def sendInitMessage(conn, clients):
+def send_init_message(conn, clients):
 	'''Initializes connection to the two clients whose chat is to be reflected
 
 	Args:
@@ -74,7 +74,7 @@ port = int(sys.argv[1])
 conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 conn.bind(('', port))
 
-sendInitMessage(conn, clients)
+send_init_message(conn, clients)
 
 while True:
 	reflect(conn, clients)
