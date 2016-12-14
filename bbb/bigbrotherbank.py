@@ -193,7 +193,6 @@ def verify_client_signature(bank_clients, verify_obj, client_id, signature):
     # Could not find a reference to this client, something went wrong!
     return False
   client_key = RSA.importKey(c[0]['key'])
-  print "obj", verify_obj
   return client_key.verify(json.dumps(verify_obj), (signature,))
 
 def check_transaction_for_negative_amounts(inputs, outputs):
@@ -778,8 +777,6 @@ def commandLine():
       print "Command not recognized"
 
 def main():
-
-  audit(openConfigFile()['transactions'])
   host = ''
   port = int(sys.argv[1])
 
