@@ -15,14 +15,14 @@ verif_obj = {
     'output': [
         {
             'id': 'f0f0bf2a6dd1a5d2c16312b2b720fda0d0b3267b3204956db2482bb4202e721e',
-            'amount': 1000
+            'amount': 0
         }
     ]
 }
 
 sig = localKey.sign(json.dumps(verif_obj), rng)
 
-print "signature", sig
+print "obj", verif_obj
 
 genesis = {
     "previous_block": None,
@@ -30,12 +30,17 @@ genesis = {
     "timestamp": int(time.time()),
     "counter": 0,
     "input": [
+        {
+            "id": "f0f0bf2a6dd1a5d2c16312b2b720fda0d0b3267b3204956db2482bb4202e721e",
+            "amount": 1000,
+            "signature": sig[0]
+        }
     ],
     "output": [
         {
             "id": "f0f0bf2a6dd1a5d2c16312b2b720fda0d0b3267b3204956db2482bb4202e721e",
             "amount": 1000,
-            "signature": sig
+            "signature": sig[0]
         }
     ]
 }

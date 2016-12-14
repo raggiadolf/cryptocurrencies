@@ -193,7 +193,8 @@ def verify_client_signature(bank_clients, verify_obj, client_id, signature):
     # Could not find a reference to this client, something went wrong!
     return False
   client_key = RSA.importKey(c[0]['key'])
-  return client_key.verify(json.dumps(verify_obj), signature)
+  print "obj", verify_obj
+  return client_key.verify(json.dumps(verify_obj), (signature,))
 
 def check_transaction_for_negative_amounts(inputs, outputs):
   return all(i >= 0 for i in inputs) and all(o >= 0 for o in outputs)
@@ -208,7 +209,7 @@ def get_verification_object_from_transaction(transactions, hashpointer):
     hashpointer: A hash pointer to the transaction to compute the verification
       object for
   '''
-  if not transactions.get(hashpointer): # This has pointer is not currently present in the blockchain
+  if not transactions.get(hashpointer): # This hash pointer is not currently present in the blockchain
     return
 
   verification_object = {
@@ -227,16 +228,68 @@ def get_verification_object_from_transaction(transactions, hashpointer):
       verification_object['input'].append({
           'id': i['id'],
           'amount': abs(result),
-          'signature': i['signature']
         })
     else: # This id was a payee
       verification_object['output'].append({
           'id': i['id'],
           'amount': abs(result),
-          'signature': i['signature']
         })
 
   return verification_object
+
+def audit(transactions):
+  t = transactions[transactions['head']]
+  block_hash = transactions['head']
+  prev_counter = t['counter']
+  clients = openConfigFile()['clients']
+
+  blockchain_valid = True
+
+  while t: # verify that the block is valid
+    # Start by checking whether the hashpointer to the block is consistent with the
+    # hash of the block
+    if not SHA256.new(json.dumps(t)).hexdigest() == block_hash:
+      print "Found an inconsistent hash of block. Hashpointer: {0}, hashed block value: {1}".format(block_hash, SHA256.new(json.dumps(t)).hexdigest())
+      blockchain_valid = False
+      break
+
+    # Check if the counter of this block is one lower than the previous block
+    # Skip this check for the head of the blockchain
+    if not block_hash == transactions['head'] and not t['counter'] == (prev_counter - 1):
+      print "Block {0} has a wrong counter compared to it's previous block".format(block_hash)
+      blockchain_valid = False
+      break
+    # Check the internal validity of each transaction
+    if (not check_transaction_for_negative_amounts(t['input'], t['output']) or
+        not check_transaction_in_out_amount(t['input'], t['output']) or
+        not check_input_balance(transactions, t['input'])):
+      print "Problem with Input/Output of block. Block {0} not valid, block: {1}".format(block_hash, t)
+      blockchain_valid = False
+      break
+
+    verify_obj = get_verification_object_from_transaction(transactions, block_hash)
+
+    # Check that the transaction was correctly signed by all participants
+    # Since all participants are in both input and output fields (is this checked anywhere?),
+    # it's enough to only loop through and verify the input list, doing so for the output list
+    # as well would simply be repetition
+    for i in t['input']:
+      if not verify_client_signature(clients, verify_obj, i['id'], i['signature']):
+        print "Client signature in block: {0} not verified for input: {1}".format(block_hash, i)
+        blockchain_valid = False
+        break
+
+    block_hash = t['previous_block'] # Traverse the blockchain
+    prev_counter = t['counter']
+    if not block_hash: # The genesis block returns None, means we're at the start of the chain
+      break
+    t = transactions[block_hash]
+
+  if blockchain_valid:
+    print "Blockchain successfully verified."
+  else:
+    print "Blockchain not valid."
+
 
 def authorize(auth_obj):
   '''Authorizes a payment and attaches it to the blockchain
@@ -725,6 +778,8 @@ def commandLine():
       print "Command not recognized"
 
 def main():
+
+  audit(openConfigFile()['transactions'])
   host = ''
   port = int(sys.argv[1])
 
