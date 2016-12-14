@@ -1,6 +1,4 @@
 import math
-import scipy
-
 from random import randint
 
 prime = 257
@@ -62,8 +60,8 @@ def combine(shares, p):
   '''
   secret = 0
 
-  x = scipy.array([x[0] for x in shares])
-  y = scipy.array([y[1] for y in shares])
+  x = [x[0] for x in shares]
+  y = [y[1] for y in shares]
 
   for i in range(len(x)): #number of polynomials L_k(x).
     numerator = 1.0 # resets numerator such that a new numerator can be created for each i.
