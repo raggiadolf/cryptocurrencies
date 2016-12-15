@@ -5,6 +5,7 @@ import json
 import base64
 import getpass
 import time
+import pprint
 
 from Crypto.PublicKey import RSA
 from Crypto import Random
@@ -79,8 +80,8 @@ def generate_authorization_object_info(clients_info, additional_info):
   for i in range(clients_info['count']):
   	data.append({
   	            'id': clients_info['ids'][i],
-  	            'amount': clients_info['amounts'][i],
-  	            'signature': make_tuple(clients_info['signatures'][i]) # make_tuple used because the signatures need to be a tuple
+  	            'amount': clients_info['amounts'][i]
+  	            #'signature': make_tuple(clients_info['signatures'][i]) # make_tuple used because the signatures need to be a tuple
   	            })
   return data
 
@@ -101,7 +102,7 @@ def get_authorization_info_from_input(initial_message, client_message):
 	clients_info['amounts'] = map(int, receive_input(clients_count, "amount", client_message))
 	clients_info['ids'] = receive_input(clients_count, "ID", client_message)
 
-	clients_info['signatures'] = receive_input(clients_count, "signature", client_message)
+	#clients_info['signatures'] = receive_input(clients_count, "signature", client_message)
 	return clients_info
 
 def process_authorize(s, my_id):
@@ -249,6 +250,27 @@ def process_put_block(s, my_id):
 
 	query_bank(s, query_obj, my_id, bank_key)
 
+def process_start_transaction(s, remotePubKey):
+	'''Starts a transaction session: Gets input/output information from the user,
+		then sends the transaction over to the peer for his signature,
+		if the signature received is valid, we send the transaction to bbb
+	'''
+	payers_info = get_authorization_info_from_input("participants (payers)", "payer")
+	receivers_info = get_authorization_info_from_input("receivers of the money", "receiver")
+
+	transaction = {
+		'input': generate_authorization_object_info(payers_info, receivers_info),
+		'output': generate_authorization_object_info(receivers_info, payers_info)
+	}
+
+	msg_obj = {
+		'type': 'transaction',
+		'transaction': transaction
+	}
+
+	encrypted_message = encrypt(msg_obj, remotePubKey)
+	s.sendto(encrypted_message, (host, port))
+
 def process_commands():
 	'''Prints a tooltip for the user with the available commands for the chatclient
 	'''
@@ -278,6 +300,8 @@ def process_cmd(cmd, my_id, s, remotePubKey, my_pub_key):
 	'''
 	if cmd.lower() == 'commands':
 		process_commands()
+	elif cmd.lower() == 'starttransaction':
+		process_start_transaction(s, remotePubKey)
 	elif cmd.lower() == 'putblock':
 		process_put_block(s, my_id)
 	elif cmd.lower() == 'getblock':
@@ -299,6 +323,8 @@ def process_cmd(cmd, my_id, s, remotePubKey, my_pub_key):
 	elif cmd.lower() == 'exit' or cmd.lower() == 'quit' or cmd.lower() == 'q':
 		print "Exiting..."
 		sys.exit()
+	elif cmd.lower() == 'yes' or cmd.lower() == 'y' or cmd.lower() == 'no' or cmd.lower() == 'n':
+		print "Are you sure? /yes /no"
 	else:
 		print "Command not recognized."
 
@@ -354,8 +380,6 @@ def handle_bank_msg(key, my_id, data, s):
 		resp = decrypt(json_data, key)
 
 	msg_type = resp['type']
-
-	msg_type = resp['type']
 	if msg_type == 'authorize':
 		if resp['success']:
 			print "Payment authorized\n>>"
@@ -403,8 +427,76 @@ def handle_bank_msg(key, my_id, data, s):
 	else:
 		print "Unkown type received from BBB", resp
 
+def sign_transaction(transaction, verify_obj, key, my_id):
+	entry = filter(lambda i:i['id'] == my_id, transaction['input'])
 
-def recv(s, key, my_id):
+	if not entry:
+		entry = filter(lambda o:o['id'] == my_id, transaction['output'])
+
+	if not entry:
+		print "Did not find my id in the transaction, can't sign it."
+		return
+
+	entry[0]['signature'] = key.sign(json.dumps(verify_obj), 42)[0]
+	return transaction
+
+def transaction_from_peer(s, key, my_id, remotePubKey, transaction):
+	msg_obj = {
+		'type': 'transaction_response'
+	}
+	print "\nReceived a transaction from peer"
+	pp = pprint.PrettyPrinter(indent=4)
+	pp.pprint(transaction)
+	print "Would you like to sign this transaction? /yes /no"
+	while True:
+		resp = raw_input('>> ')
+		if resp.lower() == '/y' or resp.lower() == '/yes':
+			msg_obj['transaction'] = sign_transaction(transaction, transaction, key, my_id)
+			if msg_obj['transaction']:
+				msg_obj['success'] = True
+			else:
+				msg_obj['success'] = False
+			break
+		elif resp.lower() == '/n' or resp.lower() == '/no':
+			msg_obj['success'] = False
+			break
+		else:
+			print "Please input either '/yes' or '/no'"
+			continue
+
+	encrypted_message = encrypt(msg_obj, remotePubKey)
+	s.sendto(encrypted_message, (host, port))
+
+def transaction_response_from_peer(transaction, key, my_id, s):
+	verify_obj = { # Pick out the information needed for the signatures
+    	'input': [{ 'id': i['id'], 'amount': i['amount'] } for i in transaction['input']],
+    	'output': [{ 'id': i['id'], 'amount': i['amount'] } for i in transaction['output']]
+  	}
+	transaction = sign_transaction(transaction, verify_obj, key, my_id)
+
+	print "Input the current head of the blockchain for the previous_block field in the new block"
+	previous_block = raw_input('>> ')
+	print "Input the counter for the new block"
+	counter = int(raw_input('>> '))
+
+	block = {
+		'input': transaction['input'],
+		'output':   transaction['output'],
+		'previous_block': previous_block,
+		'comment': my_id,
+		'counter': counter,
+		'timestamp': int(time.time())
+	}
+
+	query_obj = {
+		'type': 'putblock',
+		'block': block
+	}
+
+	query_bank(s, query_obj, my_id, bank_key)
+
+
+def recv(s, key, my_id, remotePubKey):
 	while True:
 		msg = s.recvfrom(6144)
 		addr = msg[1]
@@ -416,8 +508,16 @@ def recv(s, key, my_id):
 
 		if not data: sys.exit(0)
 
-		decryptedMessage = decrypt(json.loads(data), key)
-		print 'Remote says: ', decryptedMessage['msg']
+		decrypted_message = decrypt(json.loads(data), key)
+		if decrypted_message['type'] == 'message':
+			print 'Remote says: ', decrypted_message['msg']
+		elif decrypted_message['type'] == 'transaction':
+			transaction_from_peer(s, key, my_id, remotePubKey, decrypted_message['transaction'])
+		elif decrypted_message['type'] == 'transaction_response':
+			if decrypted_message['success']:
+				transaction_response_from_peer(decrypted_message['transaction'], key, my_id, s)
+			else:
+				print "Peer did not sign transaction"
 
 def send(s, remotePubKey, my_id, my_pub_key):
 	while True:
@@ -426,6 +526,7 @@ def send(s, remotePubKey, my_id, my_pub_key):
 			process_cmd(message[1:], my_id, s, remotePubKey, my_pub_key)
 			continue
 		msg_obj = {
+			'type': 'message',
 			'msg': message
 		}
 		encryptedMessage = encrypt(msg_obj, remotePubKey)
@@ -465,25 +566,29 @@ def main():
 		localKey = generate_key()
 		print "New key generated just for this session"
 	elif option == "2":
-		f = open('key.pem', 'r')
+		print "Input name of the .pem keyfile"
+		keyfile = raw_input('>> ')
+		f = open(keyfile, 'r')
 		print "Input passphrase"
 		passphrase = getpass.getpass('>> ')
 		localKey = RSA.importKey(f.read(),  passphrase=passphrase)
 		f.close()
-		print "Private key imported from 'key.pem'"
+		print "Private key imported from", keyfile
 	else:
 		print "Please input either 1 or 2, exiting."
 		sys.exit()
 	my_id = generate_id(localKey.publickey())
 
+	print "Establishing connection to host..."
 	s.sendto(json.dumps(generate_key_sig_object(localKey)), (host, port))
 	initmessage = json.loads(s.recvfrom(6144)[0])
 
 	remotePubKey = get_remote_public_key(initmessage, localKey)
 
+	print "Connected."
 	print "Type /commands for a list of available commands, or start typing away to chat."
 
-	recv_thread = Thread(target=recv, args=(s, localKey, my_id))
+	recv_thread = Thread(target=recv, args=(s, localKey, my_id, remotePubKey))
 	recv_thread.daemon = True
 	recv_thread.start()
 

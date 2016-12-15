@@ -193,7 +193,7 @@ def verify_client_signature(bank_clients, verify_obj, client_id, signature):
     # Could not find a reference to this client, something went wrong!
     return False
   client_key = RSA.importKey(c[0]['key'])
-  return client_key.verify(json.dumps(verify_obj), (signature,))
+  return client_key.verify(json.dumps(verify_obj), (signature,None))
 
 def check_transaction_for_negative_amounts(inputs, outputs):
   return all(i >= 0 for i in inputs) and all(o >= 0 for o in outputs)
@@ -649,10 +649,79 @@ def putblock(data):
     An object indicating success and containing a hash pointer to the new block
       if insertion was successful, an object indicating failure otherwise.
   '''
-  transactions = openConfigFile()['transactions']
+  config = openConfigFile()
+  transactions = config['transactions']
 
   if test_new_block(transactions, data['block']):
-    block_hash = update_blockchain(transactions, block)
+
+    verify_obj = {
+      'input': [{ 'id': i['id'], 'amount': i['amount']} for i in data['block']['input']],
+      'output': [{ 'id': o['id'], 'amount': o['amount']} for o in data['block']['output']]
+    }
+
+    new_block_input = []
+    new_block_output = []
+
+    for i in data['block']['input']:
+      if not verify_client_signature(config['clients'], verify_obj, i['id'], i['signature']):
+        print "Some clients signature does not match in input"
+        return {
+          'success': False
+        }
+      client_balance = get_client_balance(transactions, i['id'])
+      prev_amount = client_balance
+      new_amount = client_balance - i['amount']
+
+      new_input_obj = {
+        "id": i['id'],
+        "amount": prev_amount,
+        "signature": i['signature']
+      }
+      new_block_input.append(new_input_obj)
+
+      new_output_obj = {
+        "id": i['id'],
+        "amount": new_amount,
+        "signature": i['signature']
+      }
+      new_block_output.append(new_output_obj)
+
+    for o in data['block']['output']:
+      print o
+      if not verify_client_signature(config['clients'], verify_obj, o['id'], o['signature']):
+        print "Some clients signature does not match in output"
+        return {
+          'success': False
+        }
+      client_balance = get_client_balance(transactions, o['id'])
+      prev_amount = client_balance
+      new_amount = client_balance + o['amount']
+
+      new_input_obj = {
+        "id": o['id'],
+        "amount": prev_amount,
+        "signature": o['signature']
+      }
+      new_block_input.append(new_input_obj)
+
+      new_output_obj = {
+        "id": o['id'],
+        "amount": new_amount,
+        "signature": o['signature']
+      }
+      new_block_output.append(new_output_obj)
+
+    new_block = {
+      "input": new_block_input,
+      "output": new_block_output,
+      "previous_block": data['block']['previous_block'],
+      "counter": data['block']['counter']
+    }
+
+    block_hash = update_blockchain(transactions, new_block)
+
+    with open('config.json', 'w') as f:
+      f.write(json.dumps(config))
     return {
       'success': True,
       'hash': block_hash
