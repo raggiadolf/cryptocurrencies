@@ -1,5 +1,9 @@
 import math
+import sys
+import binascii
 from random import randint
+from bitarray import bitarray
+from bitarray import bitarray
 
 prime = 257
 
@@ -30,8 +34,7 @@ def e_gcd(a, b):
   ''' Calculate the Greatest Common Divisor of a and b.
       g = egcd(a, b)  and xa + yb = g
 
-  Args:
-    a: The first number of the gcd calculations
+  Args:    a: The first number of the gcd calculations
     b: The second number of the gcd calculations
   '''
   if a == 0:
@@ -41,7 +44,7 @@ def e_gcd(a, b):
     return (g, y - (b // a) * x, x)
 
 def mod_inverse(b, prime):
-  ''' Gives the multiplicative inverse of b mod prime.
+  ''' Calculates the multiplicative inverse of b mod prime.
 
   Args:
     b: Integer to mod
@@ -57,6 +60,9 @@ def combine(shares, p):
   Args:
     shares: the subset needed of the distibuted secret shares to find the secret
     p: a prime number specifying which modulus to work with
+
+  Returns:
+    The original secret
   '''
   secret = 0
 
@@ -76,12 +82,34 @@ def combine(shares, p):
   return secret
 
 def main():
-  s = 129
-  prime_used, shares = get_shares(s, 6, 3, prime)
+  print"Input '1' to get shares for a secret, input '2' to combine secret shares."
+  option = raw_input('>> ')
+  if option == "1":
+    print"Input the secret you want to get shares for."
+    secret = raw_input('>> ')
+    print"Input the number of parts sufficient to construct the original secret."
+    k = int(raw_input('>> '))
+    print"Input the number of component you want to split the secret to"
+    n = int(raw_input('>> '))
 
-  combined_shares = combine([shares[2], shares[4], shares[5]], prime_used)
+    for j in range(len(secret)):
+      bit_arr = bin(int(binascii.hexlify(secret[j]), 16))
+      sliced_bit_arr = bit_arr[2:]
+      integer_bit = int(sliced_bit_arr, 2)
+      prime_used, shares = get_shares(integer_bit, n, k, prime)
+      print"Your shares are: ", shares
+      print"n is: ", n
+      print"k is: ", k
+      print"j is: ", j
+      print"The prime number used was: ", prime
+  elif option == "2":
+    print"Input the array of secrets you want combined."
+    secrets_to_combine = eval(raw_input('>> '))
+    original_secret = int(combine(secrets_to_combine, prime))
+    print"The original secret is: ", binascii.unhexlify('%x' % original_secret)
+  else:
+    print"Please input either 1 or 2, exiting."
+    sys.exit()
 
-  print('The secret is!: ', combined_shares)
-
-if __name__ == '__main__':
+if __name__ == "__main__":
   main()
