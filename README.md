@@ -36,4 +36,4 @@ The original secret is saved to the secret.txt file. If there are not enough sha
 
 Of course other filenames can be used than data.txt, input.txt and secret.txt
 
-In the secretsharing dir there are example data.txt and input.txt wich can be used to generate a secret to the secret.txt file.
+In the secretsharing dir there are example data.txt and input.txt which can be used to generate a secret to the secret.txt file.
