@@ -19,3 +19,21 @@ The reflection server simply relays messages between two connected clients.
 
 ## Hash party
 The nonce finding app we made in the first? week is in hashparty.py in the cwd. The multiple implementation which spawns many workers and uses the first ones answer is in the multihash dir.
+
+## Shamir'r Secret Sharing Scheme
+Stored in the secretsharing dir. There are two possible ways of using the scheme, to generate or recover shares.
+
+To generate shares for a secret, use the command: 'python secretsharing.py generate data.txt'
+The shares for the secret will be printed to the file data.txt and each share is on the form:
+j-prime|k|n|hexpairsstring an example share is:
+1-251|5|15|dbe9a219254ca9236beac3b7acbfbfc5d514aade5e29
+
+To recover the original secretm use the command: 'python secretsharing.py recover secret.txt input.txt'
+
+input.txt should have shares that will be used to recover the secret on the form j-prime|k|n|hexpairsstring. The shares are in the same format as the shares in the data.txt file so they can be copy/paste-ed between files.
+
+The original secret is saved to the secret.txt file. If there are not enough shares to generate the secret, an error message is saved to the secret.txt file
+
+Of course other filenames can be used than data.txt, input.txt and secret.txt
+
+In the secretsharing dir there are example data.txt and input.txt wich can be used to generate a secret to the secret.txt file.
