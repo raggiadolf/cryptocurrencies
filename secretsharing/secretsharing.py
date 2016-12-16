@@ -135,7 +135,6 @@ def dist_shares(secret, n, k):
     c2b = char_to_binary(secret[i])
     bin_to_int = int(c2b, 2)
     prime, sub_secret = get_shares(bin_to_int, n, k) # generate shares for this char
-    testc  =int(combine(sub_secret, prime))
     for j in range(n):
       x = j + 1
       temp = int_to_hex_str(int(sub_secret[j][1]))
