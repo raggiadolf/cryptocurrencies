@@ -23,16 +23,16 @@ The nonce finding app we made in the first? week is in hashparty.py in the cwd. 
 ## Shamir'r Secret Sharing Scheme
 Stored in the secretsharing dir. There are two possible ways of using the scheme, to generate or recover shares.
 
-To generate shares for a secret, use the command: 'python secretsharing.py generate <outputfile.txt>'
-The shares for the secret will be printed to the file <outputfile.txt> and each share is on the form:
+To generate shares for a secret, use the command: 'python secretsharing.py generate outputfile.txt'
+The shares for the secret will be printed to the file outputfile.txt and each share is on the form:
 j-prime|k|n|hexpairsstring an example share is:
 1-251|5|15|dbe9a219254ca9236beac3b7acbfbfc5d514aade5e29
 
-To recover the original secret use the command: 'python secretsharing.py recover <outputfile.txt> <inputfile.txt>'
+To recover the original secret use the command: 'python secretsharing.py recover outputfile.txt inputfile.txt'
 
-<inputfile.txt> should have shares that will be used to recover the secret on the form j-prime|k|n|hexpairsstring. The shares are in the same format as the shares in the output file from the generate function output file so they can be copy/paste-ed between files.
+inputfile.txt should have shares that will be used to recover the secret on the form j-prime|k|n|hexpairsstring. The shares are in the same format as the shares in the output file from the generate function output file so they can be copy/paste-ed between files.
 
-The original secret is saved to the <outputfile.txt> file. If there are not enough shares to generate the secret, an error message is saved to the secret.txt file
+The original secret is saved to the outputfile.txt file. If there are not enough shares to generate the secret, an error message is saved to the secret.txt file
 
 In the secretsharing dir there are example data.txt and input.txt which can be used to generate a secret to the secret.txt file. Using the command:
 'python secretsharing.py recover secret.txt input.txt'
