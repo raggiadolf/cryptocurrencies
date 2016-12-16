@@ -1,13 +1,15 @@
 import math
 import sys
 import binascii
+import numpy as np
+
 from random import randint
-from bitarray import bitarray
+from ast import literal_eval
 from bitarray import bitarray
 
-prime = 257
+prime = 251
 
-def get_shares(s, n, k, prime):
+def get_shares(secret, n, k):
   ''' Split the secret integer value into n number of shares
 
   Args:
@@ -16,7 +18,7 @@ def get_shares(s, n, k, prime):
     k: Number of shares needed to reconsturct the secret from shares
     prime: Prime number used for mod calculations
   '''
-  coef = [s]
+  coef = [secret]
   shares = []
   for i in range(k - 1):
     coef.append(math.floor(randint(0, prime - 1)))
@@ -76,10 +78,81 @@ def combine(shares, p):
       start_position = x[i]
       next_position = x[j]
       if i != j:
-        numerator = (numerator * next_position) % prime #finds numerator for L_i
+        numerator = (numerator * -next_position) % prime #finds numerator for L_i
         denominator = (denominator * (start_position - next_position)) % prime #finds denumerator for L_i
     secret = (prime + secret + (y[i] * numerator * mod_inverse(denominator, prime))) % prime #linear combination
+
   return secret
+
+def char_to_binary(char):
+  #Char to binary. Returns a representation of an ASCII char on 8 bits with leading 0
+  ret = bin(ord(char)) # convert char to binary
+  ret = ret[2:len(ret)] #remove leading '0b'
+  for i in xrange(len(ret), 8): #pad zeroes to make each representation 1 byte long
+    ret = "0" + ret
+  return ret
+
+def secret_to_ascii(b):
+  #Converts binary string into ascii character
+  S = chr(int(b,2))
+  return S
+
+def dist_shares(secret, n, k):
+  prime_hex = hex(251)[2:]
+  shares = {}
+  points = {}
+  for s in range(n):
+    shares[s+1]=str(k)+'|'
+  for i in range(len(secret)): # for every char in the secret
+    c2b = char_to_binary(secret[i])
+    bin_to_int = int(c2b, 2)
+    prime, sub_secret = get_shares(bin_to_int, n, k) # generate shares for this char
+    testc  =int(combine(sub_secret, prime))
+    for j in range(n):
+      x = j + 1
+      temp = '{0:02x}'.format(int(sub_secret[j][1]))
+      if len(temp) == len(prime_hex):
+        shares[x] += temp
+      else:
+        shares[x] += temp + (len(prime_hex) - len(temp)) * '#'
+  return shares
+
+def recover_secret(input_share):
+  shares = {}
+  req_shares = 0
+  for x in input_share:
+    share_index = x
+    split_input = input_share[x].split('|')
+    req_shares = int(split_input[0])
+    share = split_input[1]
+    if len(input_share) != req_shares:
+      return "Not enough shares to recover the secret!"
+    shares[share_index] = share
+
+  final_secret = ''
+  index = 1
+  word_size = 2
+  tuple_shares = []
+  for key in shares:
+    temp_arr = []
+    for i in range(0, len(shares[key]), word_size):
+      share = shares[key][i:i+2]
+      temp_arr.append((key, int(share, 16)))
+    tuple_shares.append(temp_arr)
+
+  new_shares = []
+  for i in range(len(tuple_shares[0])):
+    temp_arr2 = []
+    for j in range(req_shares):
+      temp_arr2.append((tuple_shares[j][i]))
+    new_shares.append(temp_arr2)
+
+  for k in new_shares:
+    temp = int(combine(k, prime))
+    temp = secret_to_ascii(bin(temp)[2:])
+    final_secret += temp
+    index += index
+  return final_secret
 
 def main():
   print"Input '1' to get shares for a secret, input '2' to combine secret shares."
@@ -87,29 +160,23 @@ def main():
   if option == "1":
     print"Input the secret you want to get shares for."
     secret = raw_input('>> ')
-    print"Input the number of parts sufficient to construct the original secret."
-    k = int(raw_input('>> '))
     print"Input the number of component you want to split the secret to"
     n = int(raw_input('>> '))
-
-    for j in range(len(secret)):
-      bit_arr = bin(int(binascii.hexlify(secret[j]), 16))
-      sliced_bit_arr = bit_arr[2:]
-      integer_bit = int(sliced_bit_arr, 2)
-      prime_used, shares = get_shares(integer_bit, n, k, prime)
-      print"Your shares are: ", shares
-      print"n is: ", n
-      print"k is: ", k
-      print"j is: ", j
-      print"The prime number used was: ", prime
+    print"Input the number of parts sufficient to construct the original secret."
+    k = int(raw_input('>> '))
+    shares = dist_shares(secret, n, k)
+    print"Your shares are: ", shares
+    print"n is: ", n
+    print"k is: ", k
+    print"The prime number used was: ", prime
   elif option == "2":
     print"Input the array of secrets you want combined."
-    secrets_to_combine = eval(raw_input('>> '))
-    original_secret = int(combine(secrets_to_combine, prime))
-    print"The original secret is: ", binascii.unhexlify('%x' % original_secret)
+    secrets_to_combine = literal_eval(raw_input('>> '))
+    recovered_secret = recover_secret(secrets_to_combine)
+    print"The original secret is: ", recovered_secret
   else:
     print"Please input either 1 or 2, exiting."
-    sys.exit()
+  sys.exit()
 
 if __name__ == "__main__":
   main()
